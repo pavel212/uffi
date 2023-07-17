@@ -103,11 +103,11 @@ glfw.SetKeyCallback(window, key_callback);
 ```
 ## Userdata
 * x = ffi.userdata(N) - allocates N bytes, to pass 'x' as pointer to C functions.
-* x[pos] - Indexing x[pos] in Lua returns pointer to n-th element (1 based indexing in Lua)
+* ~~x[pos] - Indexing x[pos] in Lua returns pointer to n-th element (1 based indexing in Lua)~~
 * x = ffi.userdata("qwerty") - allocates strlen + 1 bytes, and copies string data with '\0'.
-* x = ffi.userdata(N,K,M) - allocates NxKxM bytes, to pass 'x' as char * to C functions, indexing as three dimensional array x[n][k][m] in Lua.
+* x = ffi.userdata(N,K,M) - allocates NxKxM bytes, to pass 'x' as char * to C functions ~~indexing as three dimensional array x[n][k][m] in Lua.~~
 * x = ffi.userdata({"first string", "second string"}) - allocates array of char * pointers and then for each allocate and copy corresponding string with '\0', to pass x as char ** to C function.
-* x = ffi.userdata({N,K,M}) - allocates two dimensional array with 3 elements, N, K, M bytes each, to pass 'x' as char ** pointer to C functions, nested tables for char ****
+~~* x = ffi.userdata({N,K,M}) - allocates two dimensional array with 3 elements, N, K, M bytes each, to pass 'x' as char ** pointer to C functions, nested tables for char ****~~
 * x:int([len]) - "dereference" userdata and convert to signed integer, len = 1..8, default 8
 * x:uint([len]) - "dereference" userdata and convert to unsigned integer, len = 1..8, default 8
 * x:float() - "dereference" userdata and convert 4 bytes as float to lua number
@@ -115,5 +115,5 @@ glfw.SetKeyCallback(window, key_callback);
 * x:boolean([len]) - "dereference" userdata and convert len bytes to lua boolean, default 1
 * x:string([len]) - "dereference" userdata and convert len bytes to lua string, 0 or nil for whole string, same as __tostring metamethod
 * x:pack(fmt, v1, v2, ...) uses string.pack to pack binary data into userdata
-* x[pos]:pack(fmt, v1, v2, ...) same with offset (1-indexed)
+~~* x[pos]:pack(fmt, v1, v2, ...) same with offset (1-indexed)~~
 * x:unpack(fmt[, pos]) uses string.unpack to unpack binary data from userdata
