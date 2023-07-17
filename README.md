@@ -13,7 +13,7 @@ msg(0, "Text", "Caption", 1)
 ### List of functions
 ```Lua
 local gl = ffi("opengl32", {"glClearColor", "glClear", "glViewport"})
-gl.glClear()
+gl.glViewport(0, 0, 640, 480)
 ```
 ### All functions from library
 ```Lua
@@ -27,7 +27,7 @@ for k,v in pairs(ffi("glfw3", "*")) do glfw[k:match("^glfw(.+)") or k] = v end
 glfw.Init()
 ```
 ### Lazy load
-If only library name provided, ffi returns empty table with '__index' metametod that loads functions when called (indexed).
+If only library name provided, ffi returns empty table with '__index' metamethod that loads functions at the moment when it is called for the first time (indexed).
 ```Lua
 local std = ffi("msvcrt")
 std.puts("qwe")
@@ -81,10 +81,11 @@ print( ffi.float( cosf( ffi.float(math.pi / 3) ) ) )
 * ffi.double(cfunc(x)) - convert double result of Cfunction without specified type to lua_Number
 * ffi.integer(cfunc(x)) - convert integer result of Cfunction without specified type to lua_Integer (default, omit)
 * ffi.boolean(cfunc(x)) - convert integer result of Cfunction without specified type to boolean
-* ffi.string(cfunc(x)) - convert integer result (char * pointer) of Cfunction without specified type to string
+* ffi.string(cfunc(x)[, len]) - convert integer result (char * pointer) of Cfunction without specified type to string, 'len' bytes or until '\0'
 * ffi.pointer(cfunc(x)) - convert integer result of Cfunction without specified type to lightuserdata
 ## Callback
-When Lua function passed to ffi(lua_func, type_string) it is converted to callback and then could be passed as function pointer to C function. type_string must be present, no automatic type conversion for callbacks!
+When Lua function passed to ffi(lua_func, type_string) it is converted to callback and then could be passed as function pointer to C function.
+type_string must be present, no automatic type conversion for callbacks!
 ```Lua
 local GLFW = {KEY_ESCAPE = 256, PRESS = 1, RELEASE = 0, TRUE = 1, FLASE = 0}
 
