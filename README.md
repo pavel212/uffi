@@ -1,5 +1,5 @@
 # uffi
-Tiny Lua FFI for Win_x64 in less than 10 kBytes (UPX)
+Micro Lua FFI for Win_x64 in less than 10 kBytes (UPX)
 # Usage
 ```Lua
 local ffi = require "ffi"
@@ -38,6 +38,7 @@ ffi.libs = {"msvcrt", "kernel32", "user32"}
 ffi.MessageBoxA(0, "Text", "Caption", 1)
 ```
 ### OpenGL extensions example
+Adds wglGetProcAddress to gl = ffi("opengl32") functionality, and removes 'gl' prefix.
 ```Lua
 local gl = {}
 gl.GetProcAddress = ffi("opengl32", "wglGetProcAddress")
@@ -51,7 +52,6 @@ function mt.__lib_error(t, k)
 end
 setmetatable(mt)
 ```
-Adds wglGetProcAddress to gl = ffi("opengl32") functionality, and removes 'gl' prefix.
 ## Types
 ### Specified
 As additional string, one character per argument, first - return value type
