@@ -120,4 +120,4 @@ For reading/writing bitfields in structures without byte read-modify-write with 
 * x[pos]:pack(fmt, v1, v2, ...) same with offset (1-based)
 * x:unpack(fmt, [pos]) uses string.unpack to unpack binary data from userdata
 
-#[Examples](examples/examples.md)
+#[Examples](example/examples.md)
