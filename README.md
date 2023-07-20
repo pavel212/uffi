@@ -114,6 +114,10 @@ glfw.SetKeyCallback(window, key_callback);
 * x:double() - "dereference" userdata and convert 8 bytes as double to lua number
 * x:boolean([len]) - "dereference" userdata and convert len bytes to lua boolean, default 1
 * x:string([len]) - "dereference" userdata and convert len bytes to lua string, 0 or nil for whole string, same as __tostring metamethod
+* x:bits(pos [, len] [, value]) "dereference" userdata and convert 'len' bits (<=64, default 1) starting at 'pos' (1-based) to integer, if 'value' provided, write first 'len' bits of 'value' to userdata starting from bit 'pos'.
+For reading/writing bitfields in structures without byte read-modify-write with unpack/pack.
 * x:pack(fmt, v1, v2, ...) uses string.pack to pack binary data into userdata
-* x[pos]:pack(fmt, v1, v2, ...) same with offset (1-indexed)
-* x:unpack(fmt[, pos]) uses string.unpack to unpack binary data from userdata
+* x[pos]:pack(fmt, v1, v2, ...) same with offset (1-based)
+* x:unpack(fmt, [pos]) uses string.unpack to unpack binary data from userdata
+
+#[Examples](examples/examples.md)

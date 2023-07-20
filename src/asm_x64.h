@@ -1,32 +1,31 @@
 /*
-#define ARGN(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,...) A17
-#define EXPAND_MSVC(x) x
-//#define _B(x,...) EXPAND_MSVC(ARGN(__VA_ARGS__,B16,_B15,_B14,_B13,_B12,_B11,_B10,_B09,_B08,_B07,_B06,_B05,_B04,_B03,_B02,_B01) (x,__VA_ARGS__))
-#define _B01(x,A)                                   *x++ = A
-#define _B02(x,A,B)                             do{ _B01(x,A);                             _B01(x,B); }while(0)
-#define _B03(x,A,B,C)                           do{ _B02(x,A,B);                           _B01(x,C); }while(0)
-#define _B04(x,A,B,C,D)                         do{ _B03(x,A,B,C);                         _B01(x,D); }while(0)
-#define _B05(x,A,B,C,D,E)                       do{ _B04(x,A,B,C,D);                       _B01(x,E); }while(0)
-#define _B06(x,A,B,C,D,E,F)                     do{ _B05(x,A,B,C,D,E);                     _B01(x,F); }while(0)
-#define _B07(x,A,B,C,D,E,F,G)                   do{ _B06(x,A,B,C,D,E,F);                   _B01(x,G); }while(0)
-#define _B08(x,A,B,C,D,E,F,G,H)                 do{ _B07(x,A,B,C,D,E,F,G);                 _B01(x,H); }while(0)
-#define _B09(x,A,B,C,D,E,F,G,H,I)               do{ _B08(x,A,B,C,D,E,F,G,H);               _B01(x,I); }while(0)
-#define _B10(x,A,B,C,D,E,F,G,H,I,J)             do{ _B09(x,A,B,C,D,E,F,G,H,I);             _B01(x,J); }while(0)
-#define _B11(x,A,B,C,D,E,F,G,H,I,J,K)           do{ _B10(x,A,B,C,D,E,F,G,H,I,J);           _B01(x,K); }while(0)
-#define _B12(x,A,B,C,D,E,F,G,H,I,J,K,L)         do{ _B11(x,A,B,C,D,E,F,G,H,I,J,K);         _B01(x,L); }while(0)
-#define _B13(x,A,B,C,D,E,F,G,H,I,J,K,L,M)       do{ _B12(x,A,B,C,D,E,F,G,H,I,J,K,L);       _B01(x,M); }while(0)
-#define _B14(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N)     do{ _B13(x,A,B,C,D,E,F,G,H,I,J,K,L,M);     _B01(x,N); }while(0)
-#define _B15(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O)   do{ _B14(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N);   _B01(x,O); }while(0)
-#define _B16(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P) do{ _B15(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O); _B01(x,P); }while(0)
+#define _ARGN(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,...) A17
+#define _ARGC(...) _EXPAND_MSVC(_ARGN(__VA_ARGS__,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1))
+#define _EXPAND_MSVC(x) x
+#define _B(x,...) _EXPAND_MSVC(_ARGN(__VA_ARGS__,B16,_B15,_B14,_B13,_B12,_B11,_B10,_B09,_B08,_B07,_B06,_B05,_B04,_B03,_B02,_B01) (x,__VA_ARGS__))
+#define _B01(x,A)                                 *(uint8_t*)x++ = (uint8_t)A
+#define _B02(x,A,B)                             ( _B01(x,A),                             _B01(x,B) )
+#define _B03(x,A,B,C)                           ( _B02(x,A,B),                           _B01(x,C) )
+#define _B04(x,A,B,C,D)                         ( _B03(x,A,B,C),                         _B01(x,D) )
+#define _B05(x,A,B,C,D,E)                       ( _B04(x,A,B,C,D),                       _B01(x,E) )
+#define _B06(x,A,B,C,D,E,F)                     ( _B05(x,A,B,C,D,E),                     _B01(x,F) )
+#define _B07(x,A,B,C,D,E,F,G)                   ( _B06(x,A,B,C,D,E,F),                   _B01(x,G) )
+#define _B08(x,A,B,C,D,E,F,G,H)                 ( _B07(x,A,B,C,D,E,F,G),                 _B01(x,H) )
+#define _B09(x,A,B,C,D,E,F,G,H,I)               ( _B08(x,A,B,C,D,E,F,G,H),               _B01(x,I) )
+#define _B10(x,A,B,C,D,E,F,G,H,I,J)             ( _B09(x,A,B,C,D,E,F,G,H,I),             _B01(x,J) )
+#define _B11(x,A,B,C,D,E,F,G,H,I,J,K)           ( _B10(x,A,B,C,D,E,F,G,H,I,J),           _B01(x,K) )
+#define _B12(x,A,B,C,D,E,F,G,H,I,J,K,L)         ( _B11(x,A,B,C,D,E,F,G,H,I,J,K),         _B01(x,L) )
+#define _B13(x,A,B,C,D,E,F,G,H,I,J,K,L,M)       ( _B12(x,A,B,C,D,E,F,G,H,I,J,K,L),       _B01(x,M) )
+#define _B14(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N)     ( _B13(x,A,B,C,D,E,F,G,H,I,J,K,L,M),     _B01(x,N) )
+#define _B15(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O)   ( _B14(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N),   _B01(x,O) )
+#define _B16(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P) ( _B15(x,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O), _B01(x,P) )
+
+#define _DW(x) x, (x)>>8, (x)>>16, (x)>>24
+#define _QW(x) x, (x)>>8, (x)>>16, (x)>>24, (x)>>32, (x)>>40, (x)>>48, (x)>>56
 */
 
-//#define _DW(x) x, (x)>>8, (x)>>16, (x)>>24
-//#define _QW(x) x, (x)>>8, (x)>>16, (x)>>24, (x)>>32, (x)>>40, (x)>>48, (x)>>56
-
-//#define _ARGC(...) EXPAND_MSVC(ARGN(__VA_ARGS__,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1))
-
-#define _ARGC(...) sizeof((uint8_t[]){__VA_ARGS__})
-#define _B(p,...) (memcpy(p, (const uint8_t[]){__VA_ARGS__}, _ARGC(__VA_ARGS__) ), (uint8_t*)p += _ARGC(__VA_ARGS__))
+#define _ARGC(...) sizeof((const uint8_t[]){__VA_ARGS__})
+#define _B(p,...) ( memcpy(p, (const uint8_t[]){__VA_ARGS__}, _ARGC(__VA_ARGS__) ), (uint8_t*)p += _ARGC(__VA_ARGS__) )
 
 #define _W(x)  (x), (x)>>8
 #define _DW(x) _W(x), _W((x)>>16)
@@ -52,13 +51,6 @@
 #define _mov_rax_r8(p)         _B(p, 0x4C, 0x89, 0xC0)
 #define _mov_rax_r9(p)         _B(p, 0x4C, 0x89, 0xC8)
 
-#define _mov_rax_QW(p,x)       _B(p, 0x48, 0xB8, _QW(x))
-#define _mov_rbx_QW(p,x)       _B(p, 0x48, 0xBB, _QW(x))
-#define _mov_rcx_QW(p,x)       _B(p, 0x48, 0xB9, _QW(x))
-#define _mov_rdx_QW(p,x)       _B(p, 0x48, 0xBA, _QW(x))
-#define _mov_r8_QW(p,x)        _B(p, 0x49, 0xB8, _QW(x))
-#define _mov_r9_QW(p,x)        _B(p, 0x49, 0xB9, _QW(x))
-
 #define _mov_eax_DW(p,x)       _B(p, 0xB8,             _DW(x))
 #define _mov_rax_DW(p,x)       _B(p, 0x48, 0xC7, 0xC0, _DW(x))
 #define _mov_rbx_DW(p,x)       _B(p, 0x48, 0xC7, 0xC3, _DW(x))
@@ -66,6 +58,13 @@
 #define _mov_rdx_DW(p,x)       _B(p, 0x48, 0xC7, 0xC2, _DW(x))
 #define _mov_r8_DW(p,x)        _B(p, 0x49, 0xC7, 0xC0, _DW(x))
 #define _mov_r9_DW(p,x)        _B(p, 0x49, 0xC7, 0xC1, _DW(x))
+
+#define _mov_rax_QW(p,x)       _B(p, 0x48, 0xB8, _QW(x))
+#define _mov_rbx_QW(p,x)       _B(p, 0x48, 0xBB, _QW(x))
+#define _mov_rcx_QW(p,x)       _B(p, 0x48, 0xB9, _QW(x))
+#define _mov_rdx_QW(p,x)       _B(p, 0x48, 0xBA, _QW(x))
+#define _mov_r8_QW(p,x)        _B(p, 0x49, 0xB8, _QW(x))
+#define _mov_r9_QW(p,x)        _B(p, 0x49, 0xB9, _QW(x))
 
 #define _clr_rax(p)            _B(p, 0x48, 0x31, 0xC0)
 #define _clr_rbx(p)            _B(p, 0x48, 0x31, 0xDB)
@@ -105,5 +104,4 @@
 #define _call_rax(p)           _B(p, 0xFF, 0xD0)
 #define _ret(p)                _B(p, 0xC3)
 
-#define _call(p,f) do { _mov_rax_QW(p, (uintptr_t)(f)); _call_rax(p); }while(0)  
-
+#define _call(p,f) ( _mov_rax_QW(p, (uintptr_t)(f)), _call_rax(p) )

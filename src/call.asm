@@ -63,26 +63,28 @@ arg_loop_end:
 
   add rsp, 32
 
-;load args to registers, both rcx & xmm0, instead of checking for floating point / integer
-  mov r13, r12
+;load args to registers, both rcx & xmm0, faster than check for floating point / integer type
+;and loading all 4 args (garbage if <4) probably also faster than checking for actual number of arguments
 
-  dec r13
-  jz call_cfunc
+;  mov r13, r12
+
+;  dec r13
+;  jz call_cfunc
   mov rcx, [rsp]
   movq xmm0, rcx
   
-  dec r13
-  je call_cfunc
+;  dec r13
+;  je call_cfunc
   mov rdx, [rsp+8]
   movq xmm1, rdx
 
-  dec r13
-  jz call_cfunc
+;  dec r13
+;  jz call_cfunc
   mov r8, [rsp+16]
   movq xmm2, r8
 
-  dec r13
-  jz call_cfunc
+;  dec r13
+;  jz call_cfunc
   mov r9, [rsp+24]
   movq xmm3, r9
 
