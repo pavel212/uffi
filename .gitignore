@@ -7,3 +7,6 @@
 /uffi.sln
 /x64
 /ffi.dll
+*.obj
+*.lib
+*.exp

@@ -7,27 +7,6 @@
 
 #include "asm_x64.h"
 
-/*
-int libfuncnum(uint32_t* lib, int** dir_exp) {
-  if (lib == 0) return 0;
-  uint32_t* p = lib;
-  if ((p[0] & 0xFFFF) != 0x5A4D) return 0; //MZ
-  p = &lib[p[15] >> 2];                    //e_lfanew
-  if (p[0] != 0x00004550) return 0;        //signature
-  if ((p[1] & 0xFFFF) != 0x8664) return 0; //machine
-  p = &lib[p[34] >> 2];                    //EXPORT_DIRECTORY
-  if (dir_exp) *dir_exp = p;               //
-  return p[6];                             //NumberOfNames
-}
-
-const char* libfuncname(uint32_t* lib, int idx) {
-  uint32_t* p;
-  if ((idx < 0) || (idx >= libfuncnum(lib, &p))) return 0;
-  p = &lib[(p[8] >> 2) + idx];             //AddressOfNames[idx]
-  return &((char*)lib)[*p];
-}
-*/
-
 const char* libfuncname(uint32_t* lib, int idx) {
   if (lib == 0) return 0;
   uint32_t* p = lib;

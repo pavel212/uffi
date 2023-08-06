@@ -68,14 +68,14 @@ end
 function M:rts(value)
   local dcb = ffi.userdata(28)
   win.GetCommState(self.hCom, dcb)
-  dcb:bits(69, 2, value and 1 or 0)    --dcb.fRtsControl = RTS_CONTROL_ENABLE
+  dcb:bits(68, 2, value and 1 or 0)    --dcb.fRtsControl = RTS_CONTROL_ENABLE
   win.SetCommState(self.hCom, dcb)
 end
 
 function M:dtr(value)
   local dcb = ffi.userdata(28)
   win.GetCommState(self.hCom, dcb)
-  dcb:bits(77, 2, value and 1 or 0)    --dcb.fDtrControl = DTR_CONTROL_ENABLE
+  dcb:bits(76, 2, value and 1 or 0)    --dcb.fDtrControl = DTR_CONTROL_ENABLE
   win.SetCommState(self.hCom, dcb)
 end
 
