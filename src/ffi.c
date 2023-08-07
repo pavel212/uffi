@@ -349,16 +349,62 @@ static void pushfunc(lua_State* L, void* lib, void* func, const char* argt) {
 
 int ffi__call(lua_State* L);
 
-int lib__index(lua_State* L) {      // stack: libt,     func
-  lua_pushcfunction(L, ffi__call);  // stack: libt,     func,  ffi_call
-  lua_insert(L, 1);                 // stack: ffi_call, libt,   func
-  lua_getmetatable(L, 1);           // stack: ffi_call, libt,   func,    metatable
-  lua_pushstring(L, "libname");     // stack: ffi_call, libt,   func,    metatable, "libname"
-  lua_rawget(L, -2);                // stack: ffi_call, libt,   func,    metatable,  lib
-  lua_insert(L, 3);                 // stack: ffi_call, libt,   lib,     func,       metatable
-  lua_pop(L, 1);                    // stack: ffi_call, libt,   lib,     func
-  lua_call(L, 3, 1);
-  if (lua_type(L, -1) == LUA_TUSERDATA) return 1;
+/*
+  switch (lua_rawget(L, 1)) {
+    case LUA_TTABLE: {
+      int len = lua_rawlen(L, -1);
+      if (len <= 0) return 0;
+      for (int i = 0; i < len; i++) {
+        lua_pushcfunction(L, ffi__call);  //ffi_call
+        lua_pushvalue(L, 1);              //ffi self
+        lua_rawgeti(L, -3, i + 1);        //lib
+        lua_pushvalue(L, 2);              //func
+        lua_call(L, 3, 1);
+        if (lua_type(L, -1) == LUA_TUSERDATA) return 1;
+      }
+    } return 0;
+    case LUA_TSTRING: {
+      lua_pushcfunction(L, ffi__call);  // stack: ffi,      func,  lib,   ffi_call
+      lua_insert(L, 1);                 // stack: ffi_call, ffi,   func,  lib
+      lua_insert(L, 3);                 // stack: ffi_call, ffi,   lib,   func
+      lua_call(L, 3, 1);
+      if (lua_type(L, -1) == LUA_TUSERDATA) return 1;
+    } return 0;
+  }
+  return 0;
+*/
+
+int lib__index(lua_State* L) {      // stack: self,     func
+
+  lua_getmetatable(L, 1);           // stack: self,     func,    metatable
+  lua_pushstring(L, "lib");         // stack: self,     func,    metatable, "lib"
+  int libtype = lua_rawget(L, -2);  // stack: self,     func,    metatable,  lib
+  lua_insert(L, 1);                 // stack: lib,      self,    func,    metatable
+  lua_pop(L, 1);                    // stack: lib,      self,    func
+  lua_insert(L, 2);                 // stack: lib,      func,    self
+
+  switch (libtype) {
+    case LUA_TTABLE: {
+      int len = lua_rawlen(L, 1);
+      if (len <= 0) return 0;
+      for (int i = 0; i < len; i++) {
+        lua_pushcfunction(L, ffi__call);  // stack: lib,      func,    self,      ffi_call
+        lua_insert(L, 3);                 // stack: lib,      func,    ffi_call,  self,  
+        lua_rawgeti(L, 1, i + 1);         // stack: lib,      func,    ffi_call,  self,  libname
+        lua_pushvalue(L, 2);              // stack: lib,      func,    ffi_call,  self,  libname,  func
+        lua_call(L, 3, 1);
+        if (lua_type(L, -1) == LUA_TUSERDATA) return 1;
+      }
+    } return 0;
+    case LUA_TSTRING: {
+      lua_pushcfunction(L, ffi__call);  // stack: lib,      func,     self,      ffi_call
+      lua_insert(L, 3);                 // stack: lib,      func,     ffi_call,  self,  
+      lua_pushvalue(L, 1);              // stack: lib,      func,     ffi_call,  self,  libname
+      lua_pushvalue(L, 2);              // stack: lib,      func,     ffi_call,  self,  libname, func
+      lua_call(L, 3, 1);
+      if (lua_type(L, -1) == LUA_TUSERDATA) return 1;
+    } return 0;
+  }
   return 0;
 }
 
@@ -419,7 +465,7 @@ int ffi__call(lua_State* L) {
         lua_pushcfunction(L, lib__index);
         lua_setfield(L, -2, "__index");
         lua_pushvalue(L, 2);   //lib name
-        lua_setfield(L, -2, "libname");
+        lua_setfield(L, -2, "lib");
         lua_setmetatable(L, -2);
         return 1;
       }
@@ -496,6 +542,7 @@ int ffi_boolean(lua_State* L) {
 }
 int ffi_userdata(lua_State* L);
 
+/*
 int ffi__index(lua_State* L) {
   lua_pushstring(L, "libs");
   switch (lua_rawget(L, 1)) {
@@ -521,9 +568,11 @@ int ffi__index(lua_State* L) {
   }
   return 0;
 }
+*/
+
 //extern "C" 
 __declspec(dllexport) int luaopen_ffi(lua_State * L){
-  lua_newtable(L);  //lib
+  lua_createtable(L, 0, 7);  //lib
 
   lua_pushcfunction(L, ffi_string);
   lua_setfield(L, -2, "string");
@@ -540,11 +589,11 @@ __declspec(dllexport) int luaopen_ffi(lua_State * L){
   lua_pushcfunction(L, ffi_userdata);
   lua_setfield(L, -2, "userdata");
 
-  lua_newtable(L);  //metatable
+  lua_createtable(L, 0, 1); //metatable
   lua_pushcfunction(L, ffi__call);
   lua_setfield(L, -2, "__call");
-  lua_pushcfunction(L, ffi__index);
-  lua_setfield(L, -2, "__index");
+//  lua_pushcfunction(L, ffi__index);
+//  lua_setfield(L, -2, "__index");
 
   lua_setmetatable(L, -2);
   return 1;
