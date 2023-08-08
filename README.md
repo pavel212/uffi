@@ -32,10 +32,10 @@ If only library name provided, ffi returns empty table with '__index' metamethod
 local std = ffi("msvcrt")
 std.puts("qwe")
 ```
-### List of libraries, lazy load with '__index' metamethod of ffi library table.
+#### List of libraries
 ```Lua
-ffi.libs = {"msvcrt", "kernel32", "user32"}
-ffi.MessageBoxA(0, "Text", "Caption", 1)
+libs = ffi({"msvcrt", "kernel32", "user32"})
+libs.MessageBoxA(0, "Text", "Caption", 1)
 ```
 ### OpenGL extensions example
 Adds wglGetProcAddress to gl = ffi("opengl32") functionality, and removes 'gl' prefix.
