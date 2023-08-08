@@ -375,35 +375,32 @@ int ffi__call(lua_State* L);
 */
 
 int lib__index(lua_State* L) {      // stack: self,     func
-
   lua_getmetatable(L, 1);           // stack: self,     func,    metatable
   lua_pushstring(L, "lib");         // stack: self,     func,    metatable, "lib"
-  int libtype = lua_rawget(L, -2);  // stack: self,     func,    metatable,  lib
-  lua_insert(L, 1);                 // stack: lib,      self,    func,    metatable
-  lua_pop(L, 1);                    // stack: lib,      self,    func
-  lua_insert(L, 2);                 // stack: lib,      func,    self
+  int libtype = lua_rawget(L, -2);  // stack: self,     func,    metatable,  libt
+  lua_insert(L, 2);                 // stack: self,     libt,     func,          metatable
+  lua_pop(L, 1);                    // stack: self,     libt,     func
 
-  switch (libtype) {
-    case LUA_TTABLE: {
-      int len = lua_rawlen(L, 1);
-      if (len <= 0) return 0;
-      for (int i = 0; i < len; i++) {
-        lua_pushcfunction(L, ffi__call);  // stack: lib,      func,    self,      ffi_call
-        lua_insert(L, 3);                 // stack: lib,      func,    ffi_call,  self,  
-        lua_rawgeti(L, 1, i + 1);         // stack: lib,      func,    ffi_call,  self,  libname
-        lua_pushvalue(L, 2);              // stack: lib,      func,    ffi_call,  self,  libname,  func
-        lua_call(L, 3, 1);
-        if (lua_type(L, -1) == LUA_TUSERDATA) return 1;
-      }
-    } return 0;
-    case LUA_TSTRING: {
-      lua_pushcfunction(L, ffi__call);  // stack: lib,      func,     self,      ffi_call
-      lua_insert(L, 3);                 // stack: lib,      func,     ffi_call,  self,  
-      lua_pushvalue(L, 1);              // stack: lib,      func,     ffi_call,  self,  libname
-      lua_pushvalue(L, 2);              // stack: lib,      func,     ffi_call,  self,  libname, func
-      lua_call(L, 3, 1);
-      if (lua_type(L, -1) == LUA_TUSERDATA) return 1;
-    } return 0;
+  int len = 0;
+  if (libtype == LUA_TTABLE)  len = lua_rawlen(L, 1);
+  if (libtype == LUA_TSTRING) len = 1;
+
+  for (int i = 0; i < len; i++) {
+    lua_pushcfunction(L, ffi__call);  // stack: self,     libt,    func,    ffi_call
+    lua_pushvalue(L, 1);              // stack: self,     libt,    func,    ffi_call,  self
+
+    if (libtype == LUA_TSTRING) 
+      lua_pushvalue(L, 2);            // stack: self,     lib,     func,    ffi_call,  self,   lib
+
+    if (libtype == LUA_TTABLE)  
+      lua_rawgeti(L, 2, i + 1);       // stack: self,     libt,    func,    ffi_call,  self,   lib
+
+    lua_pushvalue(L, 3);              // stack: self,     libt,    func,    ffi_call,  self,   lib,   func
+    lua_call(L, 3, 1);                // stack: self,     libt,    func,    code
+    if (lua_type(L, -1) == LUA_TUSERDATA) {
+      lua_settable(L, 1);             // self[func] = code
+      return 1;
+    }
   }
   return 0;
 }
