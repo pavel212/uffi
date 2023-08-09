@@ -5,7 +5,8 @@
 
 int userdata_pointer(lua_State* L) {
   void* p = lua_touserdata(L, 1);
-  lua_pushlstring(L, &p, sizeof(&p));
+  //lua_pushlstring(L, &p, sizeof(&p));
+  lua_pushinteger(L, (uintptr_t)p);
   return 1;
 }
 
