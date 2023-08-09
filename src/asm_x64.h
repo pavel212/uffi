@@ -27,7 +27,7 @@
 #define _ARGC(...) sizeof((const uint8_t[]){__VA_ARGS__})
 #define _B(p,...) ( memcpy(p, (const uint8_t[]){__VA_ARGS__}, _ARGC(__VA_ARGS__) ), (uint8_t*)p += _ARGC(__VA_ARGS__) )
 
-#define _W(x)  (x), (x)>>8
+#define _W(x)  (uint8_t)(x), (uint8_t)((x)>>8)
 #define _DW(x) _W(x), _W((x)>>16)
 #define _QW(x) _DW(x), _DW((x)>>32)
 

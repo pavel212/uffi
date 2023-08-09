@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="src\ffi.c" />
     <ClCompile Include="src\userdata.c" />
+    <ClCompile Include="src\win64.c" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="src\call.asm" />
