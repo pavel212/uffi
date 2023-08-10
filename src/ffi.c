@@ -3,6 +3,11 @@
 #include "lua.h"
 #include "lauxlib.h"
 
+//userdata.c
+int ffi_userdata(lua_State* L);
+
+
+//win64.c
 int mprotect_exec(void* addr, size_t len);
 int mprotect_noexec(void* addr, size_t len);
 
@@ -14,6 +19,8 @@ int libsymnum(uint32_t* lib);
 
 int make_func(char* code, const void* func, const char* argt);
 int make_cb(char* code, lua_State* L, int ref, const char* argt);
+
+
 
 int ispackedfloat(double x){ return (((*(uint64_t*)&x) & 0xFFFFFFFF00000000) == 0xFFFFFFFF00000000); }
 double packfloat(float x)  { uint64_t u = 0xFFFFFFFF00000000 | *(uint32_t*)&x; return *(double*)&u; }
@@ -249,8 +256,21 @@ int lib__index(lua_State* L) {      // stack: self,     func
   return 0;
 }
 
+/*
+int iterate_stringtable(lua_State* L, int idx, void (*func)(const char *)) {
+  int num = 0;
+  if (lua_type(L, idx) == LUA_TSTRING) { num = 1; lua_pushvalue(L, idx); }
+  if (lua_type(L, idx) == LUA_TTABLE) { num = lua_rawlen(L, idx); }
+  for (int i = 0; i < num; i++) {
+    if (lua_type(L, idx) == LUA_TTABLE) lua_rawgeti(L, idx, i + 1);
+    func(lua_tostring(L, -1));
+    lua_pop(L, 1);
+  }
+}
+*/
+
 int ffi__call(lua_State* L) {
-  switch (lua_type(L, 2)) {    //ffi("lib.dll"[,"func"]): [1] - self, [2] - lib [3] - func
+  switch (lua_type(L, 2)) {    //ffi("lib.dll"[, "func"][, "typestr"]): [1] - self, [2] - lib, [3] - func, [4] - types
     case LUA_TSTRING:{         //lib name
       const char* libname = lua_tostring(L, 2);
       switch (lua_type(L, 3)) {
@@ -266,9 +286,9 @@ int ffi__call(lua_State* L) {
             void* lib = libopen(libname);  //loadlibrary for each function to increment internal counter
             if (lib == 0) return 0;
             const char* funcname = libsymname(lib, i);
-            if (funcname == 0) return 0;
+            if (funcname == 0) { libclose(lib); return 0; }
             void* func = libsym(lib, funcname);
-            if (func == 0) continue;
+            if (func == 0) { libclose(lib); continue; }
             lua_pushstring(L, funcname);           //push key
             pushfunc(L, lib, func, 0);             //push value
             lua_rawset(L, -3);                     //t[key]=value
@@ -279,7 +299,14 @@ int ffi__call(lua_State* L) {
         if (lib == 0) return 0;
         void* func = libsym(lib, funcname);
         if (func == 0) { libclose(lib); return 0; }
-        pushfunc(L, lib, func, lua_tostring(L, 4));
+        if (lua_type(L, 4) == LUA_TNUMBER) {
+          lua_pushcfunction(L, ffi_userdata);
+          lua_pushlightuserdata(L, func);
+          lua_pushvalue(L, 4);
+          lua_call(L, 1, 1);
+        } else {
+          pushfunc(L, lib, func, lua_tostring(L, 4));
+        }
       } return 1;
 
       case LUA_TTABLE: {  //list of functions
@@ -376,7 +403,7 @@ int ffi_bool(lua_State* L) {
   lua_pushboolean(L, (int)lua_tointeger(L, 1));
   return 1;
 }
-int ffi_userdata(lua_State* L);
+
 
 //#define X(x) {ffi_##x,#x}
 //const luaL_Reg lib[] = { X(string), X(int), X(float), X(double), X(bool), X(pointer), X(userdata), { 0, 0 } };

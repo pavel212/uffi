@@ -10,10 +10,20 @@ int userdata_pointer(lua_State* L) {
   return 1;
 }
 
+static void* getuserdatapointer(lua_State* L, int idx, int* size) {
+  void* p = lua_touserdata(L, idx);
+  if (lua_getiuservalue(L, idx, 1) == LUA_TNUMBER) {
+    p = *(void**)p;
+    if (size) *size = lua_tointeger(L, -1);
+  } else if (size) *size = lua_rawlen(L, idx);
+  lua_pop(L, 1);
+  return p;
+}
+
 int userdata_string(lua_State* L) { //userdata:string(size, offset=0) / userdata:string("str", offset=0)
-  char* p = lua_touserdata(L, 1);
+  int len = 0;
+  char* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int len = lua_rawlen(L, 1);
   int offset = lua_tointeger(L, 3);
   if (lua_type(L, 2) == LUA_TSTRING) { //write
     int size = lua_rawlen(L, 2);
@@ -31,10 +41,10 @@ int userdata_string(lua_State* L) { //userdata:string(size, offset=0) / userdata
 }
 
 int userdata_int(lua_State* L) { //userdata:int([size][, offset][, value])
-  uint8_t* p = lua_touserdata(L, 1);
+  int len = 0;
+  uint8_t* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
   int64_t v = lua_tointeger(L, 4);
-  int len = lua_rawlen(L, 1);
   int size = len;
   int offset = lua_tointeger(L, 3);
   if (lua_isinteger(L, 2)) size = lua_tointeger(L, 2);
@@ -52,9 +62,9 @@ int userdata_int(lua_State* L) { //userdata:int([size][, offset][, value])
 }
 
 int userdata_bool(lua_State* L) { //userdata:bool([size][, offset][, value])
-  uint8_t* p = lua_touserdata(L, 1);
+  int len = 0;
+  uint8_t* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int len = lua_rawlen(L, 1);
   int size = len;
   int offset = lua_tointeger(L, 3);
   if (lua_isinteger(L, 2)) size = lua_tointeger(L, 2);
@@ -74,9 +84,9 @@ int userdata_bool(lua_State* L) { //userdata:bool([size][, offset][, value])
 }
 
 int userdata_float(lua_State* L) {  //userdata:float([, offset][, value])
-  float* p = lua_touserdata(L, 1);
+  int len = 0;
+  float* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int len = lua_rawlen(L, 1);
   int offset = lua_tointeger(L, 2);
   if (sizeof(float) * (offset + 1) > len) return 0;
   if (lua_isnumber(L, 3)) {
@@ -93,9 +103,9 @@ int userdata_float(lua_State* L) {  //userdata:float([, offset][, value])
 }
 
 int userdata_double(lua_State* L) {
-  double* p = lua_touserdata(L, 1);
+  int len = 0;
+  double* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int len = lua_rawlen(L, 1);
   int offset = lua_tointeger(L, 2);
   if (sizeof(double) * (offset + 1) > len) return 0;
   if (lua_isnumber(L, 3)) {
@@ -134,9 +144,9 @@ static void write_bits(uint64_t* data, size_t offset, uint8_t len, uint64_t valu
 }
 
 int userdata_bits(lua_State* L) {  //userdata:bits(offset[, size=1][,data write if present otherwise read])
-  uint8_t* p = lua_touserdata(L, 1);
+  int len = 0;
+  uint8_t* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int len = lua_rawlen(L, 1);
   int size = 1;
   int offset = lua_tointeger(L, 3);
   if (lua_isinteger(L, 2)) size = lua_tointeger(L, 2);
@@ -153,24 +163,28 @@ int userdata_bits(lua_State* L) {  //userdata:bits(offset[, size=1][,data write 
 }
 
 int userdata_pack(lua_State* L) {
-  void* d = lua_touserdata(L, 1);
+  int len = 0;
+  uint8_t* p = getuserdatapointer(L, 1, &len);
   lua_getglobal(L, "string");
   lua_getfield(L, -1, "pack");
   lua_insert(L, 2);  //stack: [1]=self, [2]=string.pack, [3]=fmt, [4...]=values, ...  [-1]=string
   lua_pop(L, 1);     //stack: [1]=self, [2]=string.pack, [3]=fmt, [4...]=values, ...
   lua_call(L, lua_gettop(L) - 2, 1);
   const char* s = lua_tostring(L, -1);
-  if (s) memcpy(d, s, lua_rawlen(L, -1));
+  if (len < lua_rawlen(L, -1)) len = lua_rawlen(L, -1);
+  if (s) memcpy(p, s, len);
   lua_pop(L, 1);        //remove result of string.pack and return self
   return 1;
 }
 
 int userdata_unpack(lua_State* L) {
+  int len = 0;
+  uint8_t* p = getuserdatapointer(L, 1, &len);
   lua_getglobal(L, "string");
   lua_getfield(L, -1, "unpack");
   lua_insert(L, 2);     //stack: [1]=self, [2]=string.unpack, [3]=fmt, [4]=pos,    [-1]=string
   lua_pop(L, 1);        //stack: [1]=self, [2]=string.unpack, [3]=fmt, [4]=pos,  
-  lua_pushlstring(L, lua_touserdata(L, 1), lua_rawlen(L, 1));
+  lua_pushlstring(L, p, len);
   lua_insert(L, 4);
   lua_call(L, lua_gettop(L) - 2, 1);
   return 1;
@@ -192,15 +206,13 @@ int ffi_userdata(lua_State* L) {
       if (length <= 0) return 0;
       data = lua_newuserdatauv(L, length, 0);
       memset(data, 0, length);
-      return 1;
-    }
+    } break;
 
     case LUA_TSTRING: {
       size_t length = lua_rawlen(L, 1);
       char* data = lua_newuserdatauv(L, length + 1, 0);
       memcpy(data, lua_tostring(L, 1), length + 1);
-      return 1;
-    }
+    } break;
 
     case LUA_TTABLE: {
       size_t length = lua_rawlen(L, 1);
@@ -211,7 +223,21 @@ int ffi_userdata(lua_State* L) {
         lua_call(L, 1, 1);
         data[i] = lua_touserdata(L, -1);
       }
-    }
+      
+    } break;
+
+    case LUA_TLIGHTUSERDATA: {
+      void* p = lua_touserdata(L, 1);
+      void* data = lua_newuserdatauv(L, sizeof(void*), 1);
+      lua_pushvalue(L, 2);
+      lua_setiuservalue(L, -2, 1);
+      memcpy(data, &p, sizeof(void*));
+    } break;
+
+    case LUA_TUSERDATA: {
+      lua_settop(L, 1); //remove other arguments, if any
+    } break;
+    default: return 0;
   }
 
   lua_createtable(L, 0, 2); //userdata metatable
