@@ -347,7 +347,7 @@ int ffi__call(lua_State* L) {
 
     case LUA_TLIGHTUSERDATA: {  //function pointer
       void* func = lua_touserdata(L, 2);
-      if (func = 0) return 0;
+      if (func == 0) return 0;
       pushfunc(L, 0, func, lua_tostring(L, 3));
     } return 1;
 
