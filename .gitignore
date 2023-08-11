@@ -6,7 +6,8 @@
 /uffi.vcxproj.user
 /uffi.sln
 /x64
-/ffi.dll
-*.obj
-*.lib
-*.exp
+/*.dll
+/*.obj
+/*.lib
+/*.exp
+/*.exe

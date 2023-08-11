@@ -214,7 +214,6 @@ static void pushfunc(lua_State* L, void* lib, void* func, const char* argt) {
     pushfuncmetatable(L, func__call_auto);
     lua_setmetatable(L, -2);
     *code = (uintptr_t)func;
-    lua_setmetatable(L, -2);
   }
 
   if (lib) {
@@ -270,6 +269,7 @@ int iterate_stringtable(lua_State* L, int idx, void (*func)(const char *)) {
 */
 
 int ffi__call(lua_State* L) {
+
   switch (lua_type(L, 2)) {    //ffi("lib.dll"[, "func"][, "typestr"]): [1] - self, [2] - lib, [3] - func, [4] - types
     case LUA_TSTRING:{         //lib name
       const char* libname = lua_tostring(L, 2);
