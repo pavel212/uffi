@@ -30,7 +30,7 @@ glfw.Init()
 If only library name provided, ffi returns empty table with '__index' metamethod that loads functions at the moment when it is called for the first time (indexed).
 ```Lua
 local std = ffi("msvcrt")
-std.puts("qwe")
+std.puts("Hello msvcrt")
 ```
 #### List of libraries
 ```Lua
@@ -50,7 +50,7 @@ end
 function mt.__lib_error(t, k) 
   error("Unable to load '"..k.."' from opengl32.dll or wglGetProcAddress") 
 end
-setmetatable(mt)
+setmetatable(gl, mt)
 ```
 ## Types
 ### Specified
@@ -79,8 +79,8 @@ print( ffi.float( cosf( ffi.float(math.pi / 3) ) ) )
 * ffi.float(x) - convert function argument to float for Cfunction
 * ffi.float(cfunc(x)) - convert float result of Cfunction without specified type to lua_Number
 * ffi.double(cfunc(x)) - convert double result of Cfunction without specified type to lua_Number
-* ffi.integer(cfunc(x)) - convert integer result of Cfunction without specified type to lua_Integer (default, omit)
-* ffi.boolean(cfunc(x)) - convert integer result of Cfunction without specified type to boolean
+* ffi.integer(cfunc(x)[, len]) - convert integer result of Cfunction without specified type to lua_Integer (default, omit)
+* ffi.boolean(cfunc(x)[, len]) - convert integer result of Cfunction without specified type to boolean
 * ffi.string(cfunc(x)[, len]) - convert integer result (char * pointer) of Cfunction without specified type to string, 'len' bytes or until '\0'
 * ffi.pointer(cfunc(x)) - convert integer result of Cfunction without specified type to lightuserdata
 ## Callback
@@ -102,22 +102,23 @@ key_callback = ffi(key_callback, "vpiiii")
 glfw.SetKeyCallback(window, key_callback);
 ```
 ## Userdata
+indexing of userdata as arrays with [] not implemented yet.
 * x = ffi.userdata(N) - allocates N bytes, to pass 'x' as pointer to C functions.
 * ~~x[pos] - Indexing x[pos] in Lua returns pointer to n-th element (1 based indexing in Lua)~~
 * x = ffi.userdata("qwerty") - allocates strlen + 1 bytes, and copies string data with '\0'.
 * x = ffi.userdata(N,K,M) - allocates NxKxM bytes, to pass 'x' as char * to C functions ~~indexing as three dimensional array x[n][k][m] in Lua.~~
 * x = ffi.userdata({"first string", "second string"}) - allocates array of char * pointers and then for each allocate and copy corresponding string with '\0', to pass x as char ** to C function.
 * ~~x = ffi.userdata({N,K,M}) - allocates two dimensional array with 3 elements, N, K, M bytes each, to pass 'x' as char ** pointer to C functions, nested tables for char ****~~
-* x:int([len]) - "dereference" userdata and convert to signed integer, len = 1..8, default 8
-* x:uint([len]) - "dereference" userdata and convert to unsigned integer, len = 1..8, default 8
-* x:float() - "dereference" userdata and convert 4 bytes as float to lua number
-* x:double() - "dereference" userdata and convert 8 bytes as double to lua number
-* x:boolean([len]) - "dereference" userdata and convert len bytes to lua boolean, default 1
-* x:string([len]) - "dereference" userdata and convert len bytes to lua string, 0 or nil for whole string, same as __tostring metamethod
-* x:bits(pos [, len] [, value]) "dereference" userdata and convert 'len' bits (<=64, default 1) starting at 'pos' (1-based) to integer, if 'value' provided, write first 'len' bits of 'value' to userdata starting from bit 'pos'.
+* x:int([offset][, len][, value]) - "dereference" userdata with offset*len byte offset and convert to signed integer, len = 1..8, default 8, if write value to userdata if present.
+* x:uint([offset][, len][, value]) - "dereference" userdata and convert to unsigned integer, len = 1..8, default 8
+* x:float([offset][, value]) - "dereference" userdata and convert 4 bytes as float to lua number
+* x:double([offset][, value]) - "dereference" userdata and convert 8 bytes as double to lua number
+* x:boolean([offset][, len][, value]) - "dereference" userdata and convert len bytes to lua boolean, default 1
+* x:string([offset][, len][, value]) - "dereference" userdata and convert len bytes to lua string, 0 or nil for whole string, same as __tostring metamethod
+* x:bits([offset][, len][, value]) "dereference" userdata and convert 'len' bits (<=64, default 1) with 'offset' to integer, if integer 'value' provided, write first 'len' bits of it to userdata with 'offset' (in bits).
 For reading/writing bitfields in structures without byte read-modify-write with unpack/pack.
 * x:pack(fmt, v1, v2, ...) uses string.pack to pack binary data into userdata
-* x[pos]:pack(fmt, v1, v2, ...) same with offset (1-based)
+* ~~x[pos]:pack(fmt, v1, v2, ...) same with offset (1-based)~~
 * x:unpack(fmt, [pos]) uses string.unpack to unpack binary data from userdata
 
 # [Examples](example/examples.md)
