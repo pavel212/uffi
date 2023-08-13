@@ -31,24 +31,20 @@ setmetatable(gl, {
   __lib_error = function(name) error("Unable to load '"..name.."' from opengl32.dll or wglGetProcAddress") end
 })
 
-
-function gl.ShaderError(shader, err_type)
-  local func = {}
-  func[GL.COMPILE_STATUS] = {get = gl.GetShaderiv,  info = gl.GetShaderInfoLog}
-  func[GL.LINK_STATUS]    = {get = gl.GetProgramiv, info = gl.GetProgramInfoLog}
-  func = func[err_type]
-  if not func then error ("unknown type: ".. err_type) end
+local function status(id, status, get, info)
   local pstatus = ffi.userdata(4)
-  func.get(shader, err_type, pstatus)
+  get(id, status, pstatus)
   if pstatus:int() == GL.FALSE then
-    func.get(shader, GL.INFO_LOG_LENGTH, pstatus);
+    get(id, GL.INFO_LOG_LENGTH, pstatus);
     local len = pstatus:int()
     local err = ffi.userdata(len+1)
-    len = func.info(shader, len, pstatus, err)
-    print(#(err:string()))
-    error (err:string())
+    len = info(id, len, pstatus, err)
+    return err:string()
   end
 end
+
+function gl.CompileStatus(id) return status(id, GL.COMPILE_STATUS, gl.GetShaderiv,  gl.GetShaderInfoLog)  end
+function gl.LinkStatus(id)    return status(id, GL.LINK_STATUS,    gl.GetProgramiv, gl.GetProgramInfoLog) end
 
 function gl.MakeProgram(vs, fs)
   local pid  = gl.CreateProgram()
@@ -57,16 +53,81 @@ function gl.MakeProgram(vs, fs)
   gl.ShaderSource(vsid, 1, {vs}, 0)
   gl.ShaderSource(fsid, 1, {fs}, 0)
   gl.CompileShader(vsid)
-  local err = gl.ShaderError(vsid, GL.COMPILE_STATUS) if err then return nil, err end
+  local err = gl.CompileStatus(vsid)
+  assert(not err, err)
   gl.CompileShader(fsid)
-  local err = gl.ShaderError(fsid, GL.COMPILE_STATUS) if err then return nil, err end
+  local err = gl.CompileStatus(fsid)
+  assert(not err, err)
   gl.AttachShader(pid, vsid)
   gl.AttachShader(pid, fsid)
   gl.LinkProgram(pid)
-  local err = gl.ShaderError(pid, GL.LINK_STATUS) if err then return nil, err end
+  local err = gl.LinkStatus(pid)
+  assert(not err, err)
   gl.UseProgram(pid)
   return pid
 end
 
+
+gl.shader = setmetatable({
+  compile = function(self)
+    if not self.compiled then 
+      gl.CompileShader(self.id);
+      local err = gl.CompileStatus(self.id)
+      assert(not err, err)
+      self.compiled = true
+    end
+    return self
+  end
+},{
+  __call = function(self, type, ...)
+    local this = setmetatable({
+      id = gl.CreateShader(type)
+    }, {
+      __index = gl.shader,
+      __call = function(self, ...) 
+        self.compiled = false
+        gl.ShaderSource(self.id, #{...}, {...}, 0)
+        return self
+      end
+    })
+    return this(...)
+  end
+})
+
+for k,v in pairs({"FRAGMENT", "VERTEX", "COMPUTE", "GEOMETRY"}) do gl.shader[v] = function(self, ...) return self(GL[v.."_SHADER"], ...) end end
+
+gl.program = setmetatable({
+  update = function(self)
+    for k,shader in pairs(self.shaders) do shader:compile() end
+    gl.LinkProgram(self.id)
+    local err = gl.LinkStatus(self.id)
+    assert(not err, err)
+    gl.UseProgram(self.id)
+    return self
+  end
+}, {
+  __call = function(self, ...)
+    local this = {}
+    this.id = gl.CreateProgram()
+    this.shaders = {...}
+    if type(this.shaders[1] == "string") then this.shaders = {gl.shader(GL.VERTEX_SHADER, this.shaders[1]), gl.shader(GL.FRAGMENT_SHADER, this.shaders[2])} end
+    for k,shader in pairs(this.shaders) do gl.AttachShader(this.id, shader.id) end
+    setmetatable(this, {__index = gl.program})
+    return this:update()
+  end
+})
+
+--[[
+csg = gl.shader(GL.FRAGMENT_SHADER, src)
+sdflib = gl.shader(GL.FRAGMENT_SHADER, src)
+raymarch = gl.shader(GL.FRAGMENT_SHADER, src)
+quad = gl.shader(GL.VERTEX_SHADER, src)
+
+prog = gl.program(sdflib, raymarch, quad)
+
+csg:src("")
+
+prog:update()
+]]
 gl.GL = GL
 return gl

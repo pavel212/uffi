@@ -1,12 +1,6 @@
 #include <stdint.h>
-
 #include "lua.h"
 #include "lauxlib.h"
-
-int userdata_pointer(lua_State* L) {
-  lua_pushinteger(L, (uint64_t)lua_touserdata(L, 1));
-  return 1;
-}
 
 static void* getuserdatapointer(lua_State* L, int idx, int* size) {
   void* p = lua_touserdata(L, idx);
@@ -16,6 +10,11 @@ static void* getuserdatapointer(lua_State* L, int idx, int* size) {
   } else if (size) *size = (int)lua_rawlen(L, idx);
   lua_pop(L, 1);
   return p;
+}
+
+int userdata_pointer(lua_State* L) {
+  lua_pushinteger(L, (uint64_t)getuserdatapointer(L, 1, 0));
+  return 1;
 }
 
 int userdata_string(lua_State* L) { //userdata:string(size, offset=0) / userdata:string("str", offset=0)

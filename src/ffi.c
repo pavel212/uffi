@@ -3,6 +3,11 @@
 #include "lua.h"
 #include "lauxlib.h"
 
+int ffi__call(lua_State* L);
+
+//call.asm
+int func__call_auto(lua_State* L);
+
 //userdata.c
 int ffi_userdata(lua_State* L);
 
@@ -21,14 +26,12 @@ int make_func(char* code, const void* func, const char* argt);
 int make_cb(char* code, lua_State* L, int ref, const char* argt);
 
 
-
 int ispackedfloat(double x){ return (((*(uint64_t*)&x) & 0xFFFFFFFF00000000) == 0xFFFFFFFF00000000); }
 double packfloat(float x)  { uint64_t u = 0xFFFFFFFF00000000 | *(uint32_t*)&x; return *(double*)&u; }
 float unpackfloat(double x){ return *(float*)&x; }
 
+void voidfunc() {}
 int luaF_isfloat (lua_State * L, int idx){ return ((lua_type(L, idx) == LUA_TNUMBER) && (!lua_isinteger(L, idx))); }
-
-void voidfunc(){}
 void luaF_tonil(lua_State * L, int idx){}
 float luaF_tofloat(lua_State* L, int idx) { return unpackfloat(lua_tonumber(L, idx)); }
 void* luaF_topointer(lua_State * L, int idx) { return lua_isinteger(L, idx) ? (void*)lua_tointeger(L, idx) : lua_touserdata(L, idx); }
@@ -126,17 +129,6 @@ void * luaF_push  (const char t){
   return voidfunc;
 }
 
-/*
-int strlen(const char * str){
-  const char * p = str;
-  while(*p) p += 1;
-  return p - str;
-}
-*/
-
-
-int func__call_auto(lua_State * L);
-
 int func__call_typed(lua_State * L){
   int (*f)(lua_State *) = lua_touserdata(L, 1);
   return f ? f(L) : 0;
@@ -146,10 +138,10 @@ int func__call_cb(lua_State * L){ //get rid of self argument and call lua functi
   lua_getiuservalue(L, 1, 1);
   if (lua_type(L, -1) == LUA_TNUMBER) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, lua_tointeger(L, -1));
-    lua_replace(L, 1);        //put lua callback function as first argument instead of self
-    lua_pop(L, 1);            //pop ref
-    int num = lua_gettop(L);  //+1: [1] = self -> func
-    lua_call(L, num - 1, LUA_MULTRET);
+    lua_insert(L, 2);             //put lua callback function above self
+    lua_pop(L, 1);                //pop ref
+    int num = lua_gettop(L) - 2;  //+2: [1] = self, [2] func
+    lua_call(L, num, LUA_MULTRET);
     return lua_gettop(L) - num;
   } 
   lua_pop(L, 1);
@@ -171,9 +163,8 @@ int func__gc(lua_State * L){
   return 0;
 }
 
-
 static int codesize_func_arg(char t){
-  return 16;
+  return 0;
 }
 
 static int codesize_func(const char * argt){
@@ -183,7 +174,7 @@ static int codesize_func(const char * argt){
 }
 
 static int codesize_cb_arg(char t){
-  return 16;
+  return 0;
 }
 
 static int codesize_cb(const char * argt){
@@ -222,8 +213,6 @@ static void pushfunc(lua_State* L, void* lib, void* func, const char* argt) {
   }
 }
 
-int ffi__call(lua_State* L);
-
 int lib__index(lua_State* L) {      // stack: self,     func
   lua_getmetatable(L, 1);           // stack: self,     func,    metatable
   lua_pushstring(L, "lib");         // stack: self,     func,    metatable, "lib"
@@ -241,10 +230,8 @@ int lib__index(lua_State* L) {      // stack: self,     func
 
     if (libtype == LUA_TSTRING) lua_pushvalue(L, 2);
                                       // stack: self,     lib,     func,    ffi_call,  self,   lib
-
     if (libtype == LUA_TTABLE)  lua_rawgeti(L, 2, i + 1);
                                       // stack: self,     libt,    func,    ffi_call,  self,   lib
-
     lua_pushvalue(L, 3);              // stack: self,     libt,    func,    ffi_call,  self,   lib,   func
     lua_call(L, 3, 1);                // stack: self,     libt,    func,    code
     if (lua_type(L, -1) == LUA_TUSERDATA) {
@@ -255,21 +242,7 @@ int lib__index(lua_State* L) {      // stack: self,     func
   return 0;
 }
 
-/*
-int iterate_stringtable(lua_State* L, int idx, void (*func)(const char *)) {
-  int num = 0;
-  if (lua_type(L, idx) == LUA_TSTRING) { num = 1; lua_pushvalue(L, idx); }
-  if (lua_type(L, idx) == LUA_TTABLE) { num = lua_rawlen(L, idx); }
-  for (int i = 0; i < num; i++) {
-    if (lua_type(L, idx) == LUA_TTABLE) lua_rawgeti(L, idx, i + 1);
-    func(lua_tostring(L, -1));
-    lua_pop(L, 1);
-  }
-}
-*/
-
 int ffi__call(lua_State* L) {
-
   switch (lua_type(L, 2)) {    //ffi("lib.dll"[, "func"][, "typestr"]): [1] - self, [2] - lib, [3] - func, [4] - types
     case LUA_TSTRING:{         //lib name
       const char* libname = lua_tostring(L, 2);
@@ -404,7 +377,6 @@ int ffi_bool(lua_State* L) {
   return 1;
 }
 
-
 //#define X(x) {ffi_##x,#x}
 //const luaL_Reg lib[] = { X(string), X(int), X(float), X(double), X(bool), X(pointer), X(userdata), { 0, 0 } };
 
@@ -437,4 +409,3 @@ __declspec(dllexport) int luaopen_ffi(lua_State * L){
   lua_setmetatable(L, -2);
   return 1;
 }
-
