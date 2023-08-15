@@ -5,7 +5,20 @@ local gl = {}
 gl.ClearColor = ffi("opengl32", "glClearColor", "vffff")  --float conversion
 gl.GetProcAddress = ffi("opengl32", "wglGetProcAddress", "ps")
 
-local GL = setmetatable({}, {__index = function(t,k) error ("missing definition of GL_"..k) end})
+setmetatable(gl, {
+  __index = function(t, k)
+    t[k] = ffi("opengl32", "gl"..k) or ffi(t.GetProcAddress("gl"..k)) or getmetatable(t).__lib_error("gl"..k)
+    return t[k]
+  end,
+  __lib_error = function(name) error("Unable to load '"..name.."' from opengl32.dll or wglGetProcAddress") end
+})
+
+local GL = setmetatable({}, {__index = function(t,k)
+--  local path = "D:\\soft\\tcc\\include\\GL\\"
+--  for s in io.lines(path.."gl.h") do if s:match("GL_"..k) then print(s) end end
+--  for s in io.lines(path.."glext.h") do if s:match("GL_"..k) then print(s) end end
+  error ("missing definition of GL_"..k) 
+end})
 
 GL.TRUE = 1
 GL.FALSE = 0
@@ -18,116 +31,176 @@ GL.EXTENSIONS = 0x1F03
 
 GL.FRAGMENT_SHADER = 0x8B30
 GL.VERTEX_SHADER = 0x8B31
+
 GL.COMPILE_STATUS = 0x8B81
 GL.LINK_STATUS = 0x8B82
-
 GL.INFO_LOG_LENGTH = 0x8B84
+GL.ATTACHED_SHADERS = 0x8B85
+GL.ACTIVE_UNIFORMS = 0x8B86
+GL.ACTIVE_UNIFORM_MAX_LENGTH = 0x8B87
+GL.SHADER_SOURCE_LENGTH = 0x8B88
+GL.CURRENT_PROGRAM = 0x8B8D
 
-setmetatable(gl, {
-  __index = function(t, k)
-    t[k] = ffi("opengl32", "gl"..k) or ffi(t.GetProcAddress("gl"..k)) or getmetatable(t).__lib_error("gl"..k)
-    return t[k]
-  end,
-  __lib_error = function(name) error("Unable to load '"..name.."' from opengl32.dll or wglGetProcAddress") end
-})
+GL.FLOAT = 0x1406
+GL.FLOAT_VEC2 = 0x8B50
+GL.FLOAT_VEC3 = 0x8B51
+GL.FLOAT_VEC4 = 0x8B52
+GL.FLOAT_MAT2 = 0x8B5A
+GL.FLOAT_MAT3 = 0x8B5B
+GL.FLOAT_MAT4 = 0x8B5C
 
-local function status(id, status, get, info)
-  local pstatus = ffi.userdata(4)
-  get(id, status, pstatus)
-  if pstatus:int() == GL.FALSE then
-    get(id, GL.INFO_LOG_LENGTH, pstatus);
-    local len = pstatus:int()
-    local err = ffi.userdata(len+1)
-    len = info(id, len, pstatus, err)
-    return err:string()
-  end
+GL.DOUBLE = 0x140A                                                                                                                                                                                                                     
+GL.DOUBLE_VEC2 = 0x8FFC
+GL.DOUBLE_VEC3 = 0x8FFD
+GL.DOUBLE_VEC4 = 0x8FFE
+GL.DOUBLE_MAT2 = 0x8F46
+GL.DOUBLE_MAT3 = 0x8F47
+GL.DOUBLE_MAT4 = 0x8F48
+
+GL.INT = 0x1404
+GL.INT_VEC2 = 0x8B53
+GL.INT_VEC3 = 0x8B54
+GL.INT_VEC4 = 0x8B55
+
+GL.UNSIGNED_INT = 0x1405
+GL.UNSIGNED_INT_VEC2 = 0x8DC6
+GL.UNSIGNED_INT_VEC3 = 0x8DC7
+GL.UNSIGNED_INT_VEC4 = 0x8DC8
+
+GL.BOOL = 0x8B56
+GL.BOOL_VEC2 = 0x8B57
+GL.BOOL_VEC3 = 0x8B58
+GL.BOOL_VEC4 = 0x8B59
+
+
+local function get_shader(id, name)  
+  local param = ffi.userdata(4)
+  gl.GetShaderiv(id, name, param)
+  return param:int()
 end
 
-function gl.CompileStatus(id) return status(id, GL.COMPILE_STATUS, gl.GetShaderiv,  gl.GetShaderInfoLog)  end
-function gl.LinkStatus(id)    return status(id, GL.LINK_STATUS,    gl.GetProgramiv, gl.GetProgramInfoLog) end
+local function get_program(id, name)
+  local param = ffi.userdata(4)
+  gl.GetProgramiv(id, name, param)
+  return param:int()
+end
 
-function gl.MakeProgram(vs, fs)
-  local pid  = gl.CreateProgram()
-  local vsid = gl.CreateShader(GL.VERTEX_SHADER)
-  local fsid = gl.CreateShader(GL.FRAGMENT_SHADER)
-  gl.ShaderSource(vsid, 1, {vs}, 0)
-  gl.ShaderSource(fsid, 1, {fs}, 0)
-  gl.CompileShader(vsid)
-  local err = gl.CompileStatus(vsid)
-  assert(not err, err)
-  gl.CompileShader(fsid)
-  local err = gl.CompileStatus(fsid)
-  assert(not err, err)
-  gl.AttachShader(pid, vsid)
-  gl.AttachShader(pid, fsid)
-  gl.LinkProgram(pid)
-  local err = gl.LinkStatus(pid)
-  assert(not err, err)
-  gl.UseProgram(pid)
-  return pid
+local function get_integer(name)
+  local param = ffi.userdata(4)
+  gl.GetIntegerv(name, param)
+  return param:int()
 end
 
 
-gl.shader = setmetatable({
-  compile = function(self)
-    if not self.compiled then 
-      gl.CompileShader(self.id);
-      local err = gl.CompileStatus(self.id)
-      assert(not err, err)
-      self.compiled = true
-    end
-    return self
-  end
-},{
-  __call = function(self, type, ...)
-    local this = setmetatable({
-      id = gl.CreateShader(type)
-    }, {
-      __index = gl.shader,
-      __call = function(self, ...) 
-        self.compiled = false
-        gl.ShaderSource(self.id, #{...}, {...}, 0)
-        return self
+local function get_shaderinfo(id)  
+  local len = get_shader(id, GL.INFO_LOG_LENGTH)
+  local info = ffi.userdata(len)
+  gl.GetShaderInfoLog(id, len, 0, info)
+  return info:string(len)
+end
+
+local function get_programinfo(id)  
+  local len = get_program(id, GL.INFO_LOG_LENGTH)
+  local info = ffi.userdata(len)
+  gl.GetProgramInfoLog(id, len, 0, info)
+  return info:string(len)
+end
+
+function gl.compile_status(id) return get_shader(id,  GL.COMPILE_STATUS) == GL.FALSE and get_shaderinfo(id)  or nil end
+function gl.link_status(id)    return get_program(id, GL.LINK_STATUS)    == GL.FALSE and get_programinfo(id) or nil end
+
+gl.shader = function(type, ...)
+  return setmetatable({id = gl.CreateShader(type)}, {
+    __call = function(self, ...) 
+      local src = {...}
+      if #src > 0 then 
+        gl.ShaderSource(self.id, #src, src, 0)
+        gl.CompileShader(self.id);
+        local err = gl.compile_status(self.id)
+        assert(not err, err)
       end
-    })
-    return this(...)
+      return self
+    end,
+    __gc = function(self) gl.DeleteShader(self.id) end
+  })(...)  --create, setmetatable, call with gl.shader arguments and return result
+end
+
+local function uniforms(id)
+  local num = get_program(id, GL.ACTIVE_UNIFORMS)
+  local buff_size = get_program(id, GL.ACTIVE_UNIFORM_MAX_LENGTH)
+  local length, type, size, name = ffi.userdata(4), ffi.userdata(4), ffi.userdata(4), ffi.userdata(buff_size)
+  local types, sizes, locations = {}, {}, {}
+  for i = 1, num do
+    gl.GetActiveUniform(id, i-1, buff_size, length, size, type, name)
+    local n  = name:string(length:int())
+    types[n] = type:int()
+    sizes[n] = size:int()
+    locations[n] = gl.GetUniformLocation(id, n)
   end
-})
+  return types, sizes, locations
+end
 
-for k,v in pairs({"FRAGMENT", "VERTEX", "COMPUTE", "GEOMETRY"}) do gl.shader[v] = function(self, ...) return self(GL[v.."_SHADER"], ...) end end
+local uniform_set  = { [GL.FLOAT] = "1fv", [GL.FLOAT_VEC2] = "2fv", [GL.FLOAT_VEC3] = "3fv", [GL.FLOAT_VEC4] = "4fv", [GL.DOUBLE] = "1dv", [GL.DOUBLE_VEC2] = "2dv", [GL.DOUBLE_VEC3] = "3dv", [GL.DOUBLE_VEC4] = "4dv", [GL.INT] = "1iv", [GL.INT_VEC2] = "2iv", [GL.INT_VEC3] = "3iv", [GL.INT_VEC4] = "4iv", [GL.UNSIGNED_INT] = "1uiv", [GL.UNSIGNED_INT_VEC2] = "2uiv", [GL.UNSIGNED_INT_VEC3] = "3uiv", [GL.UNSIGNED_INT_VEC4] = "4uiv", [GL.BOOL] = "1iv", [GL.BOOL_VEC2] = "2iv", [GL.BOOL_VEC3] = "3iv", [GL.BOOL_VEC4] = "4iv", [GL.FLOAT_MAT2] = "Matrix2fv", [GL.FLOAT_MAT3] = "Matrix3fv", [GL.FLOAT_MAT4] = "Matrix4fv", [GL.DOUBLE_MAT2] = "Matrix2dv", [GL.DOUBLE_MAT3] = "Matrix3dv", [GL.DOUBLE_MAT4] = "Matrix4dv"}
+local uniform_get  = {}
+local uniform_num  = {}
+local uniform_size = {}
+local uniform_pack = {}
 
-gl.program = setmetatable({
-  update = function(self)
-    for k,shader in pairs(self.shaders) do shader:compile() end
-    gl.LinkProgram(self.id)
-    local err = gl.LinkStatus(self.id)
-    assert(not err, err)
-    gl.UseProgram(self.id)
-    return self
-  end
-}, {
-  __call = function(self, ...)
-    local this = {}
-    this.id = gl.CreateProgram()
-    this.shaders = {...}
-    if type(this.shaders[1] == "string") then this.shaders = {gl.shader(GL.VERTEX_SHADER, this.shaders[1]), gl.shader(GL.FRAGMENT_SHADER, this.shaders[2])} end
-    for k,shader in pairs(this.shaders) do gl.AttachShader(this.id, shader.id) end
-    setmetatable(this, {__index = gl.program})
-    return this:update()
-  end
-})
+for k,v in pairs(uniform_set) do
+  local t = v:gsub("Matrix",""):sub(2,2)
+  uniform_get [k] = t.."v"
+  uniform_size[k] = ({f = 4, d = 8, i = 4, u = 4, b = 4})[t]
+  uniform_pack[k] = ({f = "f", d = "d", i = "i4", u = "I4", b = "i4"})[t]
+  uniform_num [k] = tonumber(v:gsub("Matrix",""):sub(1,1))
+  if v:match("Matrix") then uniform_num[k] = uniform_num[k] * uniform_num[k] end
+end
 
---[[
-csg = gl.shader(GL.FRAGMENT_SHADER, src)
-sdflib = gl.shader(GL.FRAGMENT_SHADER, src)
-raymarch = gl.shader(GL.FRAGMENT_SHADER, src)
-quad = gl.shader(GL.VERTEX_SHADER, src)
+gl.program = function(...)  
+  return setmetatable({id = gl.CreateProgram()}, {
+    __call = function(self, ...)
+      local shaders = {...}
+      if #shaders > 0 then
+        local num = get_program(self.id, GL.ATTACHED_SHADERS)
+        if num > 0 then
+          local pshaders = userdata(4*num)
+          gl.GetAttachedShaders(self.id, num, 0, pshaders)
+          for i = 0, num-1 do gl.DetachShader(self.id, pshaders:int(nil, i)) end
+        end
+        if type(shaders[1]) == "string" then shaders = {gl.shader(GL.VERTEX_SHADER, shaders[1]), gl.shader(GL.FRAGMENT_SHADER, shaders[2])} end
+        for k, shader in pairs(shaders) do gl.AttachShader(self.id, shader.id) end
+      end
+      if get_program(self.id, GL.ATTACHED_SHADERS) > 0 then
+        gl.LinkProgram(self.id)
+        local err = gl.link_status(self.id)
+        assert(not err, err)
+        gl.UseProgram(self.id)
+        local types, sizes, locations = uniforms(self.id)
 
-prog = gl.program(sdflib, raymarch, quad)
+        getmetatable(self).__index = function(self,k)
+          local t = types[k]
+          local size = uniform_size[t]
+          local num = uniform_num[t]
+          local param = ffi.userdata(num * size)
+          gl["GetUniform"..uniform_get[t]](self.id, locations[k], param)
+          local r = {param:unpack(uniform_pack[t]:rep(num))}
+          return (#r > 1) and r or r[1]
+        end
 
-csg:src("")
+        getmetatable(self).__newindex = function(self,k,v)
+          assert(get_integer(GL.CURRENT_PROGRAM) == self.id, "Setting uniform of program ("..self.id.."), while GL_CURRENT_PROGRAM = "..get_integer(GL.CURRENT_PROGRAM))
+          local t = types[k]
+          local num = uniform_num[t]
+          if type(v) ~= "table" then v = {v} end
+          local param = uniform_pack[t]:rep(num):pack(table.unpack(v))
+          if uniform_set[t]:match("Matrix") then gl["Uniform"..uniform_set[types[k]]](locations[k], num, 0, param)
+          else gl["Uniform"..uniform_set[t]](locations[k], sizes[k], param) end
+        end
+      end
+      return self
+    end,
+    __gc = function(self) gl.DeleteProgram(self.id) end
+  })(...)  --create table {id = id}, setmetatable, call with gl.program arguments and return result
+end
 
-prog:update()
-]]
 gl.GL = GL
 return gl

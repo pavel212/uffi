@@ -372,6 +372,18 @@ int ffi_pointer(lua_State* L) {
   return p ? (lua_pushinteger(L, *p), 1) : 0;
 }
 
+
+int userdata_pointer(lua_State* L);
+int userdata_string(lua_State* L);
+int userdata_int(lua_State* L);
+int userdata_float(lua_State* L);
+int userdata_double(lua_State* L);
+int userdata_bits(lua_State* L);
+int userdata_pack(lua_State* L);
+int userdata_unpack(lua_State* L);
+
+
+
 int ffi_bool(lua_State* L) {
   lua_pushboolean(L, (int)lua_tointeger(L, 1));
   return 1;
@@ -385,27 +397,46 @@ __declspec(dllexport) int luaopen_ffi(lua_State * L){
 //  luaL_newlib(L, lib);
   
   lua_createtable(L, 0, 7);  //lib
-  lua_pushcfunction(L, ffi_string);
-  lua_setfield(L, -2, "string");
-  lua_pushcfunction(L, ffi_int);
-  lua_setfield(L, -2, "int");
-  lua_pushcfunction(L, ffi_float);
-  lua_setfield(L, -2, "float");
-  lua_pushcfunction(L, ffi_double);
-  lua_setfield(L, -2, "double");
-  lua_pushcfunction(L, ffi_bool);
-  lua_setfield(L, -2, "bool");
-  lua_pushcfunction(L, ffi_pointer);
-  lua_setfield(L, -2, "pointer");
-  lua_pushcfunction(L, ffi_userdata);
-  lua_setfield(L, -2, "userdata");
+    lua_pushcfunction(L, ffi_string);
+    lua_setfield(L, -2, "string");
+    lua_pushcfunction(L, ffi_int);
+    lua_setfield(L, -2, "int");
+    lua_pushcfunction(L, ffi_float);
+    lua_setfield(L, -2, "float");
+    lua_pushcfunction(L, ffi_double);
+    lua_setfield(L, -2, "double");
+    lua_pushcfunction(L, ffi_bool);
+    lua_setfield(L, -2, "bool");
+    lua_pushcfunction(L, ffi_pointer);
+    lua_setfield(L, -2, "pointer");
   
-  lua_createtable(L, 0, 1); //metatable
-  lua_pushcfunction(L, ffi__call);
-  lua_setfield(L, -2, "__call");
-//  lua_pushcfunction(L, ffi__index);
-//  lua_setfield(L, -2, "__index");
+    lua_createtable(L, 0, 8);  //ffi.userdata table
+      lua_pushcfunction(L, userdata_pointer);
+      lua_setfield(L, -2, "pointer");
+      lua_pushcfunction(L, userdata_string);
+      lua_setfield(L, -2, "string");
+      lua_pushcfunction(L, userdata_int);
+      lua_setfield(L, -2, "int");
+      lua_pushcfunction(L, userdata_float);
+      lua_setfield(L, -2, "float");
+      lua_pushcfunction(L, userdata_double);
+      lua_setfield(L, -2, "double");
+      lua_pushcfunction(L, userdata_bits);
+      lua_setfield(L, -2, "bits");
+      lua_pushcfunction(L, userdata_pack);
+      lua_setfield(L, -2, "pack");
+      lua_pushcfunction(L, userdata_unpack);
+      lua_setfield(L, -2, "unpack");
+      lua_createtable(L, 0, 1); //ffi.userdata metatable
+      lua_pushcfunction(L, ffi_userdata);
+      lua_setfield(L, -2, "__call");
+      lua_setmetatable(L, -2);
+    lua_setfield(L, -2, "userdata");
 
-  lua_setmetatable(L, -2);
+    lua_createtable(L, 0, 1); //ffi metatable
+      lua_pushcfunction(L, ffi__call);
+      lua_setfield(L, -2, "__call");
+    lua_setmetatable(L, -2);
+
   return 1;
 }

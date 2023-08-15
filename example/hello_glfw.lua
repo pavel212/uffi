@@ -15,27 +15,29 @@ end
 key_callback = ffi(key_callback, "vpiiii")
 window:SetKeyCallback(key_callback)
   
-local vs = [[#version 150
+local vs = gl.shader(GL.VERTEX_SHADER, [[#version 150
 in vec2 p; 
-void main(void){ gl_Position = vec4(p.xy, 0.0f, 1.0f); }]]
+void main(void){ gl_Position = vec4(p.xy, 0.0f, 1.0f); }]])
 
-local fs = [[#version 150
-uniform vec2 iResolution = vec2(640,480);
+local fs = gl.shader(GL.FRAGMENT_SHADER, [[#version 150
+uniform vec2 Resolution = vec2(640, 480);
 void main(void){
-  vec2 uv = ((2.0 * gl_FragCoord.xy - iResolution.xy) / iResolution.y) * 1.25 - vec2(0.5, 0.0);
+  vec2 uv = ((2.0 * gl_FragCoord.xy - Resolution) / Resolution.y) * 1.25 - vec2(0.5, 0.0);
   int i = 0;
   for (vec2 z = vec2(0.0); (dot(z, z) < 65536.0) && (i < 100); i++) z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + uv;
   gl_FragColor = vec4(vec3(sin(i * 0.05)) * vec3(0.5, 1.0, 1.3), 1.0);
-}]]
+}]])
 
-gl.program(vs, fs)
+local prog = gl.program(fs, vs)
+local pwidth, pheight  = ffi.userdata(4), ffi.userdata(4)  --allocate 4 byte userdata in lua to pass as pointer to C function
+
 gl.ClearColor(0.3, 0.4, 0.5, 1.0)
-
-local pwidth,pheight  = ffi.userdata(4),ffi.userdata(4)  --allocate 4 byte userdata in lua to pass as pointer to C function
 
 while window:WindowShouldClose() == GLFW.FALSE do
   window:GetFramebufferSize(pwidth, pheight)
-  gl.Viewport(0, 0, pwidth:int(), pheight:int())    --dereference userdata pointer to integer, same as pwidth:upack("I4")
+  local w,h = pwidth:int(), pheight:int()   --dereference userdata pointer to integer, same as pwidth:upack("I4")
+  gl.Viewport(0, 0, w, h)    
+  prog.Resolution = {w, h}          --GLSL uniforms by name with __index/__newindex of prog, type convertion inside
   gl.Clear(GL.COLOR_BUFFER_BIT)
   gl.Rects(-1,-1,1,1)
   window:SwapBuffers()

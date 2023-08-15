@@ -37,7 +37,7 @@ int userdata_string(lua_State* L) { //userdata:string(size, offset=0) / userdata
   return 1;
 }
 
-int userdata_int(lua_State* L) { //userdata:int([size][, offset][, value])
+int userdata_int(lua_State* L) { //userdata:int([value][, offset][, size=userdata length])
   int len = 0;
   uint8_t* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
@@ -58,36 +58,14 @@ int userdata_int(lua_State* L) { //userdata:int([size][, offset][, value])
   return 1;
 }
 
-int userdata_bool(lua_State* L) { //userdata:bool([size][, offset][, value])
-  int len = 0;
-  uint8_t* p = getuserdatapointer(L, 1, &len);
-  if (p == 0) return 0;
-  int size = len;
-  int offset = (int)lua_tointeger(L, 3);
-  if (lua_isinteger(L, 2)) size = (int)lua_tointeger(L, 2);
-  if (size > 8) size = 8;
-  if ((size <= 0) || (size * (offset + 1) > len)) return 0;
-  if (lua_isboolean(L, 4)) {
-    int64_t v = lua_toboolean(L, 4);
-    memcpy(&p[size * offset], &v, size);
-    lua_pushvalue(L, 1);
-  }
-  else {
-    int64_t v = 0;
-    memcpy(&v, &p[size * offset], size);
-    lua_pushboolean(L, v!=0);
-  }
-  return 1;
-}
-
-int userdata_float(lua_State* L) {  //userdata:float([, offset][, value])
+int userdata_float(lua_State* L) {  //userdata:float([value][, offset])
   int len = 0;
   float* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int offset = (int)lua_tointeger(L, 2);
+  int offset = (int)lua_tointeger(L, 3);
   if (sizeof(float) * (offset + 1) > len) return 0;
-  if (lua_isnumber(L, 3)) {
-    p[offset] = (float)lua_tonumber(L, 3);
+  if (lua_isnumber(L, 2)) {
+    p[offset] = (float)lua_tonumber(L, 2);
     lua_pushvalue(L, 1);
   }
   else {
@@ -96,14 +74,14 @@ int userdata_float(lua_State* L) {  //userdata:float([, offset][, value])
   return 1;
 }
 
-int userdata_double(lua_State* L) {
+int userdata_double(lua_State* L) {    //userdata:float([value][, offset])
   int len = 0;
   double* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int offset = (int)lua_tointeger(L, 2);
+  int offset = (int)lua_tointeger(L, 3);
   if (sizeof(double) * (offset + 1) > len) return 0;
-  if (lua_isnumber(L, 3)) {
-    p[offset] = lua_tonumber(L, 3);
+  if (lua_isnumber(L, 2)) {
+    p[offset] = lua_tonumber(L, 2);
     lua_pushvalue(L, 1);
   }
   else {
@@ -134,17 +112,17 @@ static void write_bits(uint64_t* data, size_t offset, uint8_t len, uint64_t valu
   }
 }
 
-int userdata_bits(lua_State* L) {  //userdata:bits(offset[, size=1][,data: write if present, otherwise read])
+int userdata_bits(lua_State* L) {  //userdata:bits([,data: write if present, otherwise read][offset=0][, size=1])
   int len = 0;
   uint64_t* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
   int size = 1;
   int offset = (int)lua_tointeger(L, 3);
-  if (lua_isinteger(L, 2)) size = (int)lua_tointeger(L, 2);
+  if (lua_isinteger(L, 2)) size = (int)lua_tointeger(L, 4);
   if (size > 64) size = 64;
   if ((size <= 0) || (size * (offset + 1) > len*8)) return 0;
-  if (lua_isinteger(L, 4)) {
-    write_bits(p, offset, size, lua_tointeger(L, 4));
+  if (lua_isinteger(L, 2)) {
+    write_bits(p, offset, size, lua_tointeger(L, 2));
     lua_pushvalue(L, 1);
   }
   else {
@@ -153,7 +131,7 @@ int userdata_bits(lua_State* L) {  //userdata:bits(offset[, size=1][,data: write
   return 1;
 }
 
-int userdata_pack(lua_State* L) {
+int userdata_pack(lua_State* L) { //:pack(fmt, values....)
   int len = 0;
   uint64_t* p = getuserdatapointer(L, 1, &len);
   lua_getglobal(L, "string");
@@ -168,7 +146,7 @@ int userdata_pack(lua_State* L) {
   return 1;
 }
 
-int userdata_unpack(lua_State* L) {
+int userdata_unpack(lua_State* L) { //:unpack(fmt, pos)
   int len = 0;
   uint8_t* p = getuserdatapointer(L, 1, &len);
   lua_getglobal(L, "string");
@@ -177,89 +155,59 @@ int userdata_unpack(lua_State* L) {
   lua_pop(L, 1);        //stack: [1]=self, [2]=string.unpack, [3]=fmt, [4]=pos,  
   lua_pushlstring(L, p, len);
   lua_insert(L, 4);
-  lua_call(L, lua_gettop(L) - 2, 1);
-  return 1;
+  lua_call(L, lua_gettop(L) - 2, LUA_MULTRET);
+  return lua_gettop(L) - 1;
 }
 
 int ffi_userdata(lua_State* L) {
-  switch (lua_type(L, 1)) {
+  switch (lua_type(L, 2)) {
     case LUA_TNUMBER: {
-      int length = (int)lua_tointeger(L, 1);
-      int depth = lua_gettop(L);
-      
-      for (int i = 2; i <= depth; i++) {
-        if (LUA_TNUMBER == lua_type(L, i)) length *= (int)lua_tointeger(L, i);
-        else {
-          depth = i - 1;
-          break;
-        }
-      }
+      int length = (int)lua_tointeger(L, 2);
       if (length <= 0) return 0;
       void* data = lua_newuserdatauv(L, length, 0);
       memset(data, 0, length);
     } break;
 
     case LUA_TSTRING: {
-      size_t length = lua_rawlen(L, 1);
+      size_t length = lua_rawlen(L, 2);
       char* data = lua_newuserdatauv(L, length + 1, 0);
-      memcpy(data, lua_tostring(L, 1), length + 1);
+      memcpy(data, lua_tostring(L, 2), length + 1);
     } break;
 
     case LUA_TTABLE: {
-      size_t length = lua_rawlen(L, 1);
+      size_t length = lua_rawlen(L, 2);
       uintptr_t* data = lua_newuserdatauv(L, sizeof(uintptr_t) * length, 0);
       for (size_t i = 0; i < length; i++) {
         lua_pushcfunction(L, ffi_userdata);
+        lua_pushvalue(L, 1);
         lua_rawgeti(L, 1, i + 1);
-        lua_call(L, 1, 1);
+        lua_call(L, 2, 1);
         data[i] = (uintptr_t)lua_touserdata(L, -1);
       }
       
     } break;
 
     case LUA_TLIGHTUSERDATA: {
-      void* p = lua_touserdata(L, 1);
+      void* p = lua_touserdata(L, 2);
       void** data = lua_newuserdatauv(L, sizeof(void*), 1);
-      lua_pushvalue(L, 2);
+      lua_pushvalue(L, 3);
       lua_setiuservalue(L, -2, 1);
       *data = p;
     } break;
 
     case LUA_TUSERDATA: {
-      lua_settop(L, 1); //remove other arguments, if any
+      lua_settop(L, 2); //remove other arguments, if any
     } break;
     default: return 0;
   }
 
   lua_createtable(L, 0, 2); //userdata metatable
-
   lua_pushcfunction(L, userdata_string);
   lua_setfield(L, -2, "__tostring");
-
-  lua_createtable(L, 0, 9);  //__index table
-  {
-    lua_pushcfunction(L, userdata_pointer);
-    lua_setfield(L, -2, "pointer");
-    lua_pushcfunction(L, userdata_string);
-    lua_setfield(L, -2, "string");
-    lua_pushcfunction(L, userdata_int);
-    lua_setfield(L, -2, "int");
-    lua_pushcfunction(L, userdata_bool);
-    lua_setfield(L, -2, "bool");
-    lua_pushcfunction(L, userdata_float);
-    lua_setfield(L, -2, "float");
-    lua_pushcfunction(L, userdata_double);
-    lua_setfield(L, -2, "double");
-    lua_pushcfunction(L, userdata_bits);
-    lua_setfield(L, -2, "bits");
-    lua_pushcfunction(L, userdata_pack);
-    lua_setfield(L, -2, "pack");
-    lua_pushcfunction(L, userdata_unpack);
-    lua_setfield(L, -2, "unpack");
-  }
+  lua_pushvalue(L, 1);
   lua_setfield(L, -2, "__index");
-
   lua_setmetatable(L, -2);
+
   return 1;
 }
 
