@@ -1,5 +1,5 @@
 # uffi
-Micro Lua FFI for Win_x64 in less than 10 kBytes (UPX)
+Lua FFI for Win_x64 in less than 10 kBytes (UPX)
 # Usage
 ```Lua
 local ffi = require "ffi"
@@ -66,8 +66,8 @@ print( cosf(math.pi / 3), math.cos(math.pi / 3) )
 * 'b' - boolean
 * 'p' - pointer
 * 's' - string
-* 't' - table
-* 'l' - use Lua type of argument
+* ~~'t' - table~~
+* ~~'l' - use Lua type of argument~~
 
 Structures that are larger than 8 bytes should be passed to Cfunction as pointer(userdata) or string, <= 8 bytes must be packed in integer.
 ### Automatic
@@ -79,8 +79,8 @@ print( ffi.float( cosf( ffi.float(math.pi / 3) ) ) )
 * ffi.float(x) - convert function argument to float for Cfunction
 * ffi.float(cfunc(x)) - convert float result of Cfunction without specified type to lua_Number
 * ffi.double(cfunc(x)) - convert double result of Cfunction without specified type to lua_Number
-* ffi.integer(cfunc(x)[, len]) - convert integer result of Cfunction without specified type to lua_Integer (default, omit)
-* ffi.boolean(cfunc(x)[, len]) - convert integer result of Cfunction without specified type to boolean
+* ffi.int(cfunc(x)[, len]) - convert integer result of Cfunction without specified type to lua_Integer (default, omit)
+* ffi.bool(cfunc(x)[, len]) - convert integer result of Cfunction without specified type to boolean
 * ffi.string(cfunc(x)[, len]) - convert integer result (char * pointer) of Cfunction without specified type to string, 'len' bytes or until '\0'
 * ffi.pointer(cfunc(x)) - convert integer result of Cfunction without specified type to lightuserdata
 ## Callback
@@ -109,13 +109,14 @@ indexing of userdata as arrays with [] not implemented yet.
 * x = ffi.userdata(N,K,M) - allocates NxKxM bytes, to pass 'x' as char * to C functions ~~indexing as three dimensional array x[n][k][m] in Lua.~~
 * x = ffi.userdata({"first string", "second string"}) - allocates array of char * pointers and then for each allocate and copy corresponding string with '\0', to pass x as char ** to C function.
 * ~~x = ffi.userdata({N,K,M}) - allocates two dimensional array with 3 elements, N, K, M bytes each, to pass 'x' as char ** pointer to C functions, nested tables for char ****~~
-* x:int([offset][, len][, value]) - "dereference" userdata with offset*len byte offset and convert to signed integer, len = 1..8, default 8, if write value to userdata if present.
-* x:uint([offset][, len][, value]) - "dereference" userdata and convert to unsigned integer, len = 1..8, default 8
-* x:float([offset][, value]) - "dereference" userdata and convert 4 bytes as float to lua number
-* x:double([offset][, value]) - "dereference" userdata and convert 8 bytes as double to lua number
-* x:boolean([offset][, len][, value]) - "dereference" userdata and convert len bytes to lua boolean, default 1
-* x:string([offset][, len][, value]) - "dereference" userdata and convert len bytes to lua string, 0 or nil for whole string, same as __tostring metamethod
-* x:bits([offset][, len][, value]) "dereference" userdata and convert 'len' bits (<=64, default 1) with 'offset' to integer, if integer 'value' provided, write first 'len' bits of it to userdata with 'offset' (in bits).
+* x:int([value][,offset][, len]) - "dereference" userdata with offset*len byte offset and convert to signed integer, len = 1..8, default - length of userdata or 8, x:int(nil, offset, len) to read with offset.
+* x:uint([value][, offset][, len]) - "dereference" userdata and convert to unsigned integer, len = 1..8
+* x:float([value][, offset]) - "dereference" userdata and convert 4 bytes as float to lua number
+* x:double([value][, offset]) - "dereference" userdata and convert 8 bytes as double to lua number
+* x:boolean([value][, offset][, len]) - "dereference" userdata and convert len bytes to lua boolean, default 1
+* x:string([, value/len][, offset]) - if type(value) =="number" then "dereference" userdata and convert to lua string, 0 or nil for whole string, 
+  __tostring=x:string(). if type(value) == "string" then copy string into userdata 
+* x:bits([value][, offset][, len]) "dereference" userdata and convert 'len' bits (<=64, default 1) with 'offset' to integer, if integer 'value' provided, write first 'len' bits of it to userdata with 'offset' (in bits).
 For reading/writing bitfields in structures without byte read-modify-write with unpack/pack.
 * x:pack(fmt, v1, v2, ...) uses string.pack to pack binary data into userdata
 * ~~x[pos]:pack(fmt, v1, v2, ...) same with offset (1-based)~~
