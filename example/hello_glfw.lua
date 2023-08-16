@@ -5,7 +5,6 @@ local GL = gl.GL
 local GLFW = glfw.GLFW
 
 glfw.Init()
-
 local window = glfw.CreateWindow(640, 480, "Simple example", 0, 0)
 window:MakeContextCurrent()
 
@@ -20,9 +19,11 @@ in vec2 p;
 void main(void){ gl_Position = vec4(p.xy, 0.0f, 1.0f); }]])
 
 local fs = gl.shader(GL.FRAGMENT_SHADER, [[#version 150
-uniform vec2 Resolution = vec2(640, 480);
+uniform vec2 resolution;
+uniform float zoom = 1.0;
+uniform vec2 pos = vec2(1.25, 0.05);
 void main(void){
-  vec2 uv = ((2.0 * gl_FragCoord.xy - Resolution) / Resolution.y) * 1.25 - vec2(0.5, 0.0);
+  vec2 uv = ((2.0 * gl_FragCoord.xy - resolution) / resolution.y) * zoom - pos;
   int i = 0;
   for (vec2 z = vec2(0.0); (dot(z, z) < 65536.0) && (i < 100); i++) z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + uv;
   gl_FragColor = vec4(vec3(sin(i * 0.05)) * vec3(0.5, 1.0, 1.3), 1.0);
@@ -37,7 +38,8 @@ while window:WindowShouldClose() == GLFW.FALSE do
   window:GetFramebufferSize(pwidth, pheight)
   local w,h = pwidth:int(), pheight:int()   --dereference userdata pointer to integer, same as pwidth:upack("I4")
   gl.Viewport(0, 0, w, h)    
-  prog.Resolution = {w, h}          --GLSL uniforms by name with __index/__newindex of prog, type convertion inside
+  prog.resolution = {w, h}          --GLSL uniforms by name with __index/__newindex of prog, type convertion inside
+  prog.zoom = math.exp(-5+5*math.cos(os.clock()))
   gl.Clear(GL.COLOR_BUFFER_BIT)
   gl.Rects(-1,-1,1,1)
   window:SwapBuffers()
