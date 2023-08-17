@@ -87,7 +87,7 @@ print( ffi.float( cosf( ffi.float(math.pi / 3) ) ) )
 When Lua function passed to ffi(lua_func, type_string) it is converted to callback and then could be passed as function pointer to C function.
 type_string must be present, no automatic type conversion for callbacks!
 ```Lua
-local GLFW = {KEY_ESCAPE = 256, PRESS = 1, RELEASE = 0, TRUE = 1, FLASE = 0}
+local GLFW = {KEY_ESCAPE = 256, PRESS = 1, RELEASE = 0, TRUE = 1, FALSE = 0}
 
 local function key_callback(window, key, scancode, action, mods)
 --  print(key,scancode,action)
