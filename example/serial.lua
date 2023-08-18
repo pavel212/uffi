@@ -15,13 +15,18 @@ end
 
 function M:open(port, baudrate, bits, parity, stop)
   baudrate, bits, parity, stop = baudrate or 9600, bits or 8, parity or 0, stop or 1
-  self.hCom = win.CreateFile(port, 0xC0000000, 0, 0, 3, 0, 0) -- GENERIC_READ | GENERIC_WRITE, OPEN_EXISTING
-  if self.hCom == 0 then return nil end
-  if win.SetCommTimeouts(hCom, ("I4"):rep(5):pack(0xFFFFFFFF,0,0,0,0)) == 0 then 
+  self.hCom = win.CreateFileA(port, 0xC0000000, 0, 0, 3, 0, 0) -- GENERIC_READ | GENERIC_WRITE, OPEN_EXISTING
+  if self.hCom == 0 then 
+    print("could not open port "..port.." with error "..(win.GetLastError()))
+    return nil 
+  end
+  if win.SetCommTimeouts(self.hCom, ("I4"):rep(5):pack(0xFFFFFFFF,0,0,0,0)) == 0 then 
+    print("could not set timeouts for "..port.." with error "..(win.GetLastError()))
     self:close()
     return nil 
   end
-  if win.SetCommState(hCom, ("I4I4I4I2I2I2BBBbbbbbI2"):pack(28, baudrate, 0,   0, 0, 0,   bits, parity, stop,   0, 0, 0, 0, 0, 0)) ~= 0 then
+  if win.SetCommState(self.hCom, ("I4I4I4I2I2I2BBBbbbbbI2"):pack(28, baudrate, 0,   0, 0, 0,   bits, parity, stop,   0, 0, 0, 0, 0,   0)) == 0 then
+    print("could not set comm state for "..port.." with error "..(win.GetLastError()))
     self:close()
     return nil
   end
@@ -35,6 +40,7 @@ end
 
 function M:read(num)
   num = num or self:num()
+  if num <= 0 then return "" end
   local buff = ffi.userdata(num)
   local plength = ffi.userdata(4)
   win.ReadFile(self.hCom, buff, num, plength, 0)
@@ -50,7 +56,7 @@ end
 function M:num()
   local stat = ffi.userdata(12)
   local err = ffi.userdata(4)
-  win.ClearCommError(self.hCom, err, stat);
+  win.ClearCommError(self.hCom, err, stat)
   local s, rx, tx = stat:unpack("I4I4I4")
   return rx, tx
 end
@@ -68,14 +74,14 @@ end
 function M:rts(value)
   local dcb = ffi.userdata(28)
   win.GetCommState(self.hCom, dcb)
-  dcb:bits(68, 2, value and 1 or 0)    --dcb.fRtsControl = RTS_CONTROL_ENABLE
+  dcb:bits(value and 1 or 0, 68, 2)    --dcb.fRtsControl = RTS_CONTROL_ENABLE
   win.SetCommState(self.hCom, dcb)
 end
 
 function M:dtr(value)
   local dcb = ffi.userdata(28)
   win.GetCommState(self.hCom, dcb)
-  dcb:bits(76, 2, value and 1 or 0)    --dcb.fDtrControl = DTR_CONTROL_ENABLE
+  dcb:bits(value and 1 or 0, 76, 2)    --dcb.fDtrControl = DTR_CONTROL_ENABLE
   win.SetCommState(self.hCom, dcb)
 end
 
