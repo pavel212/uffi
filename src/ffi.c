@@ -235,7 +235,9 @@ int lib__index(lua_State* L) {      // stack: self,     func
     lua_pushvalue(L, 3);              // stack: self,     libt,    func,    ffi_call,  self,   lib,   func
     lua_call(L, 3, 1);                // stack: self,     libt,    func,    code
     if (lua_type(L, -1) == LUA_TUSERDATA) {
-      lua_settable(L, 1);             // self[func] = code
+      lua_pushvalue(L, -1);          // stack: self,     libt,    func,    code, code
+      lua_insert(L, 3);               // stack: self,    libt,   code,  func,    code, 
+      lua_settable(L, 1);             // self[func] = code    // stack: self,    libt,   code
       return 1;
     }
   }
