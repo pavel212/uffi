@@ -15,7 +15,7 @@ msg(0, "Text", "Caption", 1)
 local err = ffi("gpib", "user_iberr", 4)
 print(err:int())
 ```
-With number as [type](readme.md#types) (3rd argument) ffi creates and returns [userdata](readme.md#userdata) of the given size, pointing to library symbol
+With number as [type](https://github.com/pavel212/uffi#types) (3rd argument) ffi creates and returns [userdata](https://github.com/pavel212/uffi#userdata) of the given size, pointing to library symbol
 ### List of functions
 ```Lua
 local gl = ffi("opengl32", {"glClearColor", "glClear", "glViewport"})
@@ -58,7 +58,7 @@ function mt.__lib_error(t, k)
 end
 setmetatable(gl, mt)
 ```
-## Types (#types)
+## Types
 ### Specified
 As additional string, one character per argument, first - return value type
 ```Lua
@@ -107,7 +107,7 @@ key_callback = ffi(key_callback, "vpiiii")
 
 glfw.SetKeyCallback(window, key_callback);
 ```
-## Userdata (#userdata)
+## Userdata
 indexing of userdata as arrays with [] not implemented yet.
 * x = ffi.userdata(N) - allocates N bytes, to pass 'x' as pointer to C functions.
 * ~~x[pos] - Indexing x[pos] in Lua returns pointer to n-th element (1 based indexing in Lua)~~
