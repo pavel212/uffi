@@ -156,9 +156,9 @@ int userdata_type(lua_State* L) {
   }
 
   if (type == LUA_TSTRING) {  //set __type to ffi.userdata[str]
-    lua_getfield(L, -1, "__index");  //stack: self, ..., metatable, __index 
-    lua_pushvalue(L, 2);            //stack: self, ..., metatable, __index, arg
-    lua_rawget(L, -2);               //stack: self, ..., metatable, __index, userdata[arg]
+    lua_getfield(L, -1, "__userdata");  //stack: self, ..., metatable, __index 
+    lua_pushvalue(L, 2);                //stack: self, ..., metatable, __index, arg
+    lua_rawget(L, -2);                  //stack: self, ..., metatable, __index, userdata[arg]
     lua_setfield(L, -3, "__type");
     lua_settop(L, 1);
     return 1;
@@ -192,32 +192,39 @@ int userdata_size(lua_State* L) {
 
 //__index(t,k) x = ffi.userdata(size):type("float");   x(0), x(1), x(2)
 int userdata__index(lua_State* L) {  //x = ffi.userdata():type("float") -> x.getmetatable().__type = userdata.float; then x(n) -> x.metatable.__type(x, nil, n) -> x:float(nil, n)
-  int type = lua_type(L, 2);
+  int type = lua_type(L, 2); //key
+  lua_getmetatable(L, 1);
   if (type == LUA_TNUMBER) {
-    lua_getmetatable(L, 1);
-
     if (lua_getfield(L, -1, "__type") != LUA_TFUNCTION) return 0;
     lua_pushvalue(L, 1);
     lua_pushnil(L);
     lua_pushvalue(L, 2);
     lua_getfield(L, -5, "__size");
     lua_call(L, 4, 1);
-    lua_remove(L, -2);
+//    lua_remove(L, -2);
+    return 1;
+  } else {
+    lua_getfield(L, -1, "__userdata");
+    lua_pushvalue(L, 2);
+    lua_gettable(L, -2);
     return 1;
   }
   return 0;
 }
 //__newindex(t,k,v) (ffi.userdata()) [k] = v
 int userdata__newindex(lua_State* L) {  //x = ffi.userdata():type("float") -> userdata.metatable.__type = userdata.float; x[n] -> x.metatable.__type(x, value, n) -> x:float(value, n)
-  lua_getmetatable(L, 1);
-  lua_getfield(L, -1, "__type");
-  lua_pushvalue(L, 1);
-  lua_pushvalue(L, 3);
-  lua_pushvalue(L, 2);
-  lua_getfield(L, -5, "__size");
-  lua_call(L, 4, 1);
-  lua_remove(L, -2);
-  return 1;
+  int type = lua_type(L, 2); //key
+  if (type == LUA_TNUMBER) {
+    lua_getmetatable(L, 1);
+    lua_getfield(L, -1, "__type");
+    lua_pushvalue(L, 1);
+    lua_pushvalue(L, 3);
+    lua_pushvalue(L, 2);
+    lua_getfield(L, -5, "__size");
+    lua_call(L, 4, 1);
+    //  lua_remove(L, -2);
+  }
+  return 0;
 }
 
 int userdata_unpack(lua_State* L) { //:unpack(fmt, pos)
@@ -275,15 +282,18 @@ int ffi_userdata(lua_State* L) {
     default: return 0;
   }
 
-  lua_createtable(L, 0, 3); //userdata metatable
+  lua_createtable(L, 0, 5); //userdata metatable
     lua_pushcfunction(L, userdata_string);
     lua_setfield(L, -2, "__tostring");
 
-    lua_pushvalue(L, 1);  //ffi.userdata as __index
-    lua_setfield(L, -2, "__index");
-
+    lua_pushvalue(L, 1);  //ffi.userdata
+    lua_setfield(L, -2, "__userdata");  //for indexing of ffi.userdata functions
+     
     lua_pushcfunction(L, userdata__index);
     lua_setfield(L, -2, "__call");   //for now () for indexing as array instead of []: http://lua-users.org/lists/lua-l/2023-08/msg00122.html
+
+    lua_pushcfunction(L, userdata__index);
+    lua_setfield(L, -2, "__index");
 
     lua_pushcfunction(L, userdata__newindex);
     lua_setfield(L, -2, "__newindex");
