@@ -383,7 +383,8 @@ int userdata_double(lua_State* L);
 int userdata_bits(lua_State* L);
 int userdata_pack(lua_State* L);
 int userdata_unpack(lua_State* L);
-
+int userdata_type(lua_State* L);
+int userdata__index(lua_State* L);
 
 
 int ffi_bool(lua_State* L) {
@@ -429,10 +430,16 @@ __declspec(dllexport) int luaopen_ffi(lua_State * L){
       lua_setfield(L, -2, "pack");
       lua_pushcfunction(L, userdata_unpack);
       lua_setfield(L, -2, "unpack");
+      lua_pushcfunction(L, userdata_type);
+      lua_setfield(L, -2, "type");
+
       lua_createtable(L, 0, 1); //ffi.userdata metatable
-      lua_pushcfunction(L, ffi_userdata);
-      lua_setfield(L, -2, "__call");
+        lua_pushcfunction(L, ffi_userdata);
+        lua_setfield(L, -2, "__call");
+//        lua_pushcfunction(L, userdata__index);
+//        lua_setfield(L, -2, "__index");
       lua_setmetatable(L, -2);
+
     lua_setfield(L, -2, "userdata");
 
     lua_createtable(L, 0, 1); //ffi metatable

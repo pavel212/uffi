@@ -41,13 +41,13 @@ int userdata_int(lua_State* L) { //userdata:int([value][, offset][, size=userdat
   int len = 0;
   uint8_t* p = getuserdatapointer(L, 1, &len);
   if (p == 0) return 0;
-  int64_t v = lua_tointeger(L, 4);
+  int64_t v = lua_tointeger(L, 2);
   int size = len;
   int offset = (int)lua_tointeger(L, 3);
-  if (lua_isinteger(L, 2)) size = (int)lua_tointeger(L, 2);
+  if (lua_isinteger(L, 4)) size = (int)lua_tointeger(L, 4);
   if (size > 8) size = 8;
   if ((size <=0) || (size*(offset+1) > len)) return 0;
-  if (lua_isinteger(L, 4)) {
+  if (lua_isinteger(L, 2)) {
     memcpy(&p[size * offset], &v, size);
     lua_pushvalue(L, 1);
   }
@@ -146,6 +146,80 @@ int userdata_pack(lua_State* L) { //:pack(fmt, values....)
   return 1;
 }
 
+int userdata_type(lua_State* L) {
+  int type = lua_type(L, 2);
+  lua_getmetatable(L, 1);
+
+  if ((type == LUA_TNIL) || (type == LUA_TNONE)) { // get type
+    lua_getfield(L, -1, "__type");    //stack: self, ..., [nil], metatable, type
+    return 1;
+  }
+
+  if (type == LUA_TSTRING) {  //set __type to ffi.userdata[str]
+    lua_getfield(L, -1, "__index");  //stack: self, ..., metatable, __index 
+    lua_pushvalue(L, 2);            //stack: self, ..., metatable, __index, arg
+    lua_rawget(L, -2);               //stack: self, ..., metatable, __index, userdata[arg]
+    lua_setfield(L, -3, "__type");
+    lua_settop(L, 1);
+    return 1;
+  }
+  
+  if (type == LUA_TFUNCTION) {
+    lua_pushvalue(L, 2);           //stack: self, ..., metatable, arg
+    lua_setfield(L, -2, "__type");
+    lua_settop(L, 1);
+    return 1;
+  }
+}
+
+int userdata_size(lua_State* L) {
+  int type = lua_type(L, 2);
+  lua_getmetatable(L, 1);
+  if ((type == LUA_TNIL) || (type == LUA_TNONE)) { // get size
+    lua_getfield(L, -1, "__size");    //stack: self, ..., [nil], metatable, type
+    lua_remove(L, -2);  //remove metatable
+    if (type == LUA_TNIL) lua_remove(L, -2); //remove nil
+    return 1;
+  }
+
+  if (type == LUA_TNUMBER) {  //set __size for indexing
+    lua_pushvalue(L, 2);            //stack: self, ..., metatable, arg
+    lua_setfield(L, -2, "__size");
+    lua_pop(L, 1);
+  }
+  return 0;
+}
+
+//__index(t,k) x = ffi.userdata(size):type("float");   x(0), x(1), x(2)
+int userdata__index(lua_State* L) {  //x = ffi.userdata():type("float") -> x.getmetatable().__type = userdata.float; then x(n) -> x.metatable.__type(x, nil, n) -> x:float(nil, n)
+  int type = lua_type(L, 2);
+  if (type == LUA_TNUMBER) {
+    lua_getmetatable(L, 1);
+
+    if (lua_getfield(L, -1, "__type") != LUA_TFUNCTION) return 0;
+    lua_pushvalue(L, 1);
+    lua_pushnil(L);
+    lua_pushvalue(L, 2);
+    lua_getfield(L, -5, "__size");
+    lua_call(L, 4, 1);
+    lua_remove(L, -2);
+    return 1;
+  }
+  return 0;
+}
+//__newindex(t,k,v) (ffi.userdata()) [k] = v
+int userdata__newindex(lua_State* L) {  //x = ffi.userdata():type("float") -> userdata.metatable.__type = userdata.float; x[n] -> x.metatable.__type(x, value, n) -> x:float(value, n)
+  lua_getmetatable(L, 1);
+  lua_getfield(L, -1, "__type");
+  lua_pushvalue(L, 1);
+  lua_pushvalue(L, 3);
+  lua_pushvalue(L, 2);
+  lua_getfield(L, -5, "__size");
+  lua_call(L, 4, 1);
+  lua_remove(L, -2);
+  return 1;
+}
+
 int userdata_unpack(lua_State* L) { //:unpack(fmt, pos)
   int len = 0;
   uint8_t* p = getuserdatapointer(L, 1, &len);
@@ -201,177 +275,20 @@ int ffi_userdata(lua_State* L) {
     default: return 0;
   }
 
-  lua_createtable(L, 0, 2); //userdata metatable
-  lua_pushcfunction(L, userdata_string);
-  lua_setfield(L, -2, "__tostring");
-  lua_pushvalue(L, 1);
-  lua_setfield(L, -2, "__index");
+  lua_createtable(L, 0, 3); //userdata metatable
+    lua_pushcfunction(L, userdata_string);
+    lua_setfield(L, -2, "__tostring");
+
+    lua_pushvalue(L, 1);  //ffi.userdata as __index
+    lua_setfield(L, -2, "__index");
+
+    lua_pushcfunction(L, userdata__index);
+    lua_setfield(L, -2, "__call");   //for now () for indexing as array instead of []: http://lua-users.org/lists/lua-l/2023-08/msg00122.html
+
+    lua_pushcfunction(L, userdata__newindex);
+    lua_setfield(L, -2, "__newindex");
+
   lua_setmetatable(L, -2);
 
   return 1;
 }
-
-
-/*
-
-
-#define USERDATA_TUINT1   0x00
-#define USERDATA_TUINT2   0x01
-#define USERDATA_TUINT4   0x02
-#define USERDATA_TUINT8   0x03
-#define USERDATA_TINT1    0x10
-#define USERDATA_TINT2    0x11
-#define USERDATA_TINT4    0x12
-#define USERDATA_TINT8    0x13
-#define USERDATA_TFLOAT   0x22 
-#define USERDATA_TDOUBLE  0x23
-#define USERDATA_TSTRING  0x40
-#define USERDATA_TPOINTER 0x80
-
-
-int userdata__index(lua_State* L) {  //array indexing, read
-  if (lua_isinteger(L, 2)) {
-    uint8_t* p = lua_touserdata(L, 1);
-    size_t offset = lua_tointeger(L, 2);
-    int dim = 0;
-    while (LUA_TNONE != lua_getiuservalue(L, 1, dim++));
-    switch(lua_type(L, 4)) {
-      case LUA_TNUMBER: 
-        lua_getiuservalue(L, 3, 1);
-        void* data = lua_touserdata(L, -1);
-        size_t size = 1 << (lua_tointeger(L, 4) & 0x03);
-//        lua_newuserdatauv(L, ???)
-
-        if (dim <= 1) {  //one dimensional array
-
-        }
-        else {
-
-        }
-        lua_pushlightuserdata(L, &((uint8_t*)data)[offset * size]);
-        lua_setiuservalue(L, -2, 1);
-
-      break;
-
-      case LUA_TTABLE: //indexing of multidimensional array
-//        lua_newuserdatauv(L, );
-//        lua_rawgeti(L, -1, offset);
-//        lua_setiuservalue(L, ? ? ? , 1);
-      break;
-    }
-    return 1;
-  }
-  return 0;
-}
-
-int userdata__newindex(lua_State* L) {  //array indexing, write
-  return 0;
-}
-
-int userdata_dim(lua_State* L) {
-  int i = 3;
-  while (LUA_TNONE != lua_getiuservalue(L, 1, i++));
-  lua_pop(L, 1); //removel last nil
-  return i-4;
-}
-
-
-//uservalues of userdata: [1] - type, [2...] array dimensions
-int ffi_userdata(lua_State* L) {
-  if (lua_type(L, 1) == LUA_TNUMBER) {
-    int length = lua_tointeger(L, 1);
-    int depth = lua_gettop(L);
-    void* data = 0;
-    for (int i = 2; i <= depth; i++) {
-      if (LUA_TNUMBER == lua_type(L, i)) length *= lua_tointeger(L, i);
-      else {
-        depth = i - 1;
-        break;
-      }
-    }
-    if (length > 0) {
-      data = lua_newuserdatauv(L, length, depth + 2);
-      memset(data, 0, length);
-    }
-    else return 0;
-
-    lua_pushlightuserdata(L, data);       
-    lua_setiuservalue(L, -2, 1);
-
-    lua_pushinteger(L, USERDATA_TUINT1);       //element size 1 by default
-    lua_setiuservalue(L, -2, 2);
-
-    for (int i = 1; i <= depth; i++) {
-      lua_pushvalue(L, lua_tointeger(L, i));
-      lua_setiuservalue(L, -2, i+2);
-    }
-  }
-
-  if (lua_type(L, 1) == LUA_TSTRING) {
-    size_t length = lua_rawlen(L, 1);
-    char* data = lua_newuserdatauv(L, length + 1, 2);
-    memcpy(data, lua_tostring(L, 1), length + 1);
-    lua_pushlightuserdata(L, data);
-    lua_setiuservalue(L, -2, 1);
-
-    lua_pushinteger(L, USERDATA_TSTRING);       //element size 1 by default
-    lua_setiuservalue(L, -2, 2);
-  }
-
-  if (lua_type(L, 1) == LUA_TTABLE) {
-    size_t length = lua_rawlen(L, 1);
-    uintptr_t* data = lua_newuserdatauv(L, sizeof(uintptr_t) * length, 2); //array store pointers also in uservalues to prevent GC
-    lua_pushlightuserdata(L, data);
-    lua_setiuservalue(L, -2, 1);
-
-    lua_pushvalue(L, 1);          //table type
-    lua_setiuservalue(L, -2, 2);
-    for (size_t i = 0; i < length; i++) {
-      lua_pushcfunction(L, ffi_userdata);
-      lua_rawgeti(L, 1, i + 1);
-      lua_call(L, 1, 1);
-      data[i] = lua_touserdata(L, -1);
-    }
-  }
-
-  lua_createtable(L, 0, 2); //userdata metatable
-  lua_pushcfunction(L, userdata_string);
-  lua_setfield(L, -2, "__tostring");
-
-  lua_createtable(L, 0, 7);  //__index table
-  lua_pushcfunction(L, userdata_pointer);
-  lua_setfield(L, -2, "pointer");
-  lua_pushcfunction(L, userdata_string);
-  lua_setfield(L, -2, "string");
-  lua_pushcfunction(L, userdata_int);
-  lua_setfield(L, -2, "int");
-  lua_pushcfunction(L, userdata_bool);
-  lua_setfield(L, -2, "bool");
-  lua_pushcfunction(L, userdata_float);
-  lua_setfield(L, -2, "float");
-  lua_pushcfunction(L, userdata_double);
-  lua_setfield(L, -2, "double");
-  lua_pushcfunction(L, userdata_bits);
-  lua_setfield(L, -2, "bits");
-
-//  lua_pushcfunction(L, userdata_pack);
-//  lua_setfield(L, -2, "pack");
-//  lua_pushcfunction(L, userdata_unpack);
-//  lua_setfield(L, -2, "unpack");
-//  lua_pushcfunction(L, userdata_dim);
-//  lua_setfield(L, -2, "dim");
-
-  lua_createtable(L, 0, 2);  //metatable for __index which is called if no metamethod is found (e.g. for x[1])
-  lua_pushcfunction(L, userdata__index);
-  lua_setfield(L, -2, "__index");
-  lua_setmetatable(L, -2);
-  lua_setfield(L, -2, "__index");
-
-//  lua_pushcfunction(L, userdata__newindex);
-//  lua_setfield(L, -2, "__newindex");
-
-  lua_setmetatable(L, -2);
-  return 1;
-}
-
-*/
