@@ -1,5 +1,5 @@
-# uffi
-Lua FFI for Win_x64 in less than 10 kBytes (UPX)
+# uFFI
+Lua FFI for Win_x64 in less than 10 kBytes (UPX), https://habr.com/ru/articles/746658/
 # Usage
 ```Lua
 local ffi = require "ffi"
