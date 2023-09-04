@@ -6,23 +6,26 @@
 #include "asm_x64.h"
 
 //nostdlib
+void* mem_cpy(void* dst, const void* src, size_t len) {
+  void* ret = dst;
+  while (len > 7) { *((uint64_t*)dst)++ = *((uint64_t*)src)++; len -= 8; }
+  while (len    ) { *((uint8_t*) dst)++ = *((uint8_t*) src)++; len -= 1; }
+  return ret;
+}
+
+//void* (*mem_cpy)(void*, const void*, size_t);
+
 #ifndef _DEBUG
 int _fltused = 0;
-BOOL WINAPI _DllMainCRTStartup(HINSTANCE hDll, DWORD dwReason, LPVOID lpReserved) { return TRUE; }
+BOOL WINAPI _DllMainCRTStartup(HINSTANCE hDll, DWORD dwReason, LPVOID lpReserved) { 
+//  mem_cpy = (void* (*)(void*, const void*, size_t)) GetProcAddress(LoadLibrary("msvcrt.dll"), "memcpy");
+  return TRUE; }
 #endif
 
 //dynlib
-void* libopen(const char* filename){
-  return LoadLibrary(filename);
-}
-
-void* libsym(void* lib, const char* name){
-  return GetProcAddress(lib, name);
-}
-
-int libclose(void* lib) {
-  return FreeLibrary(lib);
-}
+void* libopen(const char* filename){ return LoadLibrary(filename); }
+void* libsym(void* lib, const char* name){  return GetProcAddress(lib, name); }
+int libclose(void* lib){ return FreeLibrary(lib); }
 
 const char* libsymname(uint32_t* lib, uint32_t idx) {
   if (lib == 0) return 0;
