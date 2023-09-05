@@ -1,6 +1,14 @@
 package.path = package.path ..";.\\example\\?.lua"
 
---dofile ("example/hello_glfw.lua")
+local ffi = require("ffi")
+local win = ffi({"user32", "kernel32"})
+local hInstance = win.GetModuleHandleA(0)
+
+os.exit()
+
+dofile ("example/hello_glfw.lua")
+
+os.exit()
 
 local ffi = require("ffi")
 

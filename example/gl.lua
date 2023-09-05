@@ -29,8 +29,14 @@ GL.RENDERER = 0x1F01
 GL.VERSION = 0x1F02
 GL.EXTENSIONS = 0x1F03
 
-GL.FRAGMENT_SHADER = 0x8B30
+GL.COMPUTE_SHADER = 0x91B9
 GL.VERTEX_SHADER = 0x8B31
+GL.TESS_EVALUATION_SHADER = 0x8E87
+GL.TESS_CONTROL_SHADER = 0x8E88
+GL.GEOMETRY_SHADER = 0x8DD9
+GL.FRAGMENT_SHADER = 0x8B30
+
+GL.TRANSFORM_FEEDBACK = 0x8E22
 
 GL.COMPILE_STATUS = 0x8B81
 GL.LINK_STATUS = 0x8B82
@@ -108,22 +114,6 @@ local function link_status(self)
   end
 end
 
-gl.shader = function(type, ...)
-  return setmetatable({id = gl.CreateShader(type), status = compile_status}, {
-    __call = function(self, ...) 
-      local src = {...}
-      if #src > 0 then 
-        gl.ShaderSource(self.id, #src, src, 0)
-        gl.CompileShader(self.id)
-        local err = self:status()
-        assert(not err, err)
-      end
-      return self
-    end,
-    __gc = function(self) gl.DeleteShader(self.id) end
-  })(...)  --create, setmetatable, call with gl.shader arguments and return result
-end
-
 local function uniforms(id)
   local num = get_program_int(id, GL.ACTIVE_UNIFORMS)
   local buff_size = get_program_int(id, GL.ACTIVE_UNIFORM_MAX_LENGTH)
@@ -153,6 +143,28 @@ for k,v in pairs(uniform_set) do
   uniform_num [k] = tonumber(v:gsub("Matrix",""):sub(1,1))
   if v:match("Matrix") then uniform_num[k] = uniform_num[k] * uniform_num[k] end
 end
+
+gl.shader = function(type, ...)
+  return setmetatable({id = gl.CreateShader(type), status = compile_status}, {
+    __call = function(self, ...) 
+      local src = {...}
+      if #src > 0 then 
+        gl.ShaderSource(self.id, #src, src, 0)
+        gl.CompileShader(self.id)
+        local err = self:status()
+        assert(not err, err)
+      end
+      return self
+    end,
+    __gc = function(self) gl.DeleteShader(self.id) end
+  })(...)  --create, setmetatable, call with gl.shader arguments and return result
+end
+
+gl.compute_shader     = function(...) return gl.shader(GL.COMPUTE_SHADER,     ...) end
+gl.vertex_shader      = function(...) return gl.shader(GL.VERTEX_SHADER,      ...) end
+gl.tesselation_shader = function(...) return gl.shader(GL.TESSELATION_SHADER, ...) end
+gl.geometry_shader    = function(...) return gl.shader(GL.GEOMETRY_SHADER,    ...) end
+gl.fragment_shader    = function(...) return gl.shader(GL.FRAGMENT_SHADER,    ...) end
 
 gl.program = function(...)  
   return setmetatable({id = gl.CreateProgram(), status = link_status}, {

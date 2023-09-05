@@ -8,6 +8,7 @@
 //nostdlib
 void* mem_cpy(void* dst, const void* src, size_t len) {
   void* ret = dst;
+//  while (len & 7) { *((uint8_t*) dst)++ = *((uint8_t*) src)++; len -= 1; }
   while (len > 7) { *((uint64_t*)dst)++ = *((uint64_t*)src)++; len -= 8; }
   while (len    ) { *((uint8_t*) dst)++ = *((uint8_t*) src)++; len -= 1; }
   return ret;

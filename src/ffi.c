@@ -221,7 +221,7 @@ int lib__index(lua_State* L) {      // stack: self,     func
   lua_pop(L, 1);                    // stack: self,     libt,     func
 
   int len = 0;
-  if (libtype == LUA_TTABLE)  len = (int)lua_rawlen(L, 1);
+  if (libtype == LUA_TTABLE)  len = (int)lua_rawlen(L, 2);
   if (libtype == LUA_TSTRING) len = 1;
 
   for (int i = 0; i < len; i++) {
@@ -235,84 +235,85 @@ int lib__index(lua_State* L) {      // stack: self,     func
     lua_pushvalue(L, 3);              // stack: self,     libt,    func,    ffi_call,  self,   lib,   func
     lua_call(L, 3, 1);                // stack: self,     libt,    func,    code
     if (lua_type(L, -1) == LUA_TUSERDATA) {
-      lua_pushvalue(L, -1);          // stack: self,     libt,    func,    code, code
-      lua_insert(L, 3);               // stack: self,    libt,   code,  func,    code, 
+      lua_pushvalue(L, -1);           // stack: self,     libt,    func,    code,      code
+      lua_insert(L, 3);               // stack: self,     libt,    code,    func,      code, 
       lua_settable(L, 1);             // self[func] = code    // stack: self,    libt,   code
       return 1;
     }
+    else lua_pop(L, 1);
   }
   return 0;
 }
 
 int ffi__call(lua_State* L) {
+  if ((lua_type(L, 3) == LUA_TNONE) || (lua_type(L, 3) == LUA_TNIL)) {
+    //return empty table with __index metamethod that load functions when first called (indexed)
+    lua_createtable(L, 0, 0);               //self, lib, {}
+    lua_createtable(L, 0, 2);               //self, lib, {}, mt
+    lua_pushcfunction(L, lib__index);       //self, lib, {}, mt, __index
+    lua_setfield(L, -2, "__index");         //self, lib, {}, mt
+    lua_pushvalue(L, 2);   //lib name       //self, lib, {}, mt, lib
+    lua_setfield(L, -2, "lib");             //self, lib, {}, mt
+    lua_setmetatable(L, -2);                //self, lib, {}
+    return 1;
+  }
+
   switch (lua_type(L, 2)) {    //ffi("lib.dll"[, "func"][, "typestr"]): [1] - self, [2] - lib, [3] - func, [4] - types
     case LUA_TSTRING:{         //lib name
       const char* libname = lua_tostring(L, 2);
       switch (lua_type(L, 3)) {
-      case LUA_TSTRING: {  //func name
-        const char* funcname = lua_tostring(L, 3);
-        if ((funcname[0] == '*') && (funcname[1] == '\0')) {// funcname == "*", load all
+        case LUA_TSTRING: {   //func name
+          const char* funcname = lua_tostring(L, 3);
+          if ((funcname[0] == '*') && (funcname[1] == '\0')) {// funcname == "*", load all
+            void* lib = libopen(libname);
+            if (lib == 0) return 0;
+            int num = libsymnum(lib);
+            libclose(lib);
+            lua_createtable(L, 0, num);
+            for (int i = 0; i < num; i++) {
+              void* lib = libopen(libname);  //loadlibrary for each function to increment internal counter
+              if (lib == 0) return 0;
+              const char* funcname = libsymname(lib, i);
+              if (funcname == 0) { libclose(lib); return 0; }
+              void* func = libsym(lib, funcname);
+              if (func == 0) { libclose(lib); continue; }
+              lua_pushstring(L, funcname);           //push key
+              pushfunc(L, lib, func, 0);             //push value
+              lua_rawset(L, -3);                     //t[key]=value
+            }
+            return 1;
+          }
           void* lib = libopen(libname);
           if (lib == 0) return 0;
-          int num = libsymnum(lib);
-          libclose(lib);
+          void* func = libsym(lib, funcname);
+          if (func == 0) { libclose(lib); return 0; }
+          if (lua_type(L, 4) == LUA_TNUMBER) {
+            lua_pushcfunction(L, ffi_userdata);
+            lua_pushlightuserdata(L, func);
+            lua_pushvalue(L, 4);
+            lua_call(L, 1, 1);
+          } else {
+            pushfunc(L, lib, func, lua_tostring(L, 4));
+          }
+        } return 1;
+
+        case LUA_TTABLE: {  //list of functions
+          int num = (int)lua_rawlen(L, 3);
           lua_createtable(L, 0, num);
           for (int i = 0; i < num; i++) {
-            void* lib = libopen(libname);  //loadlibrary for each function to increment internal counter
+            void* lib = libopen(libname);
             if (lib == 0) return 0;
-            const char* funcname = libsymname(lib, i);
-            if (funcname == 0) { libclose(lib); return 0; }
-            void* func = libsym(lib, funcname);
-            if (func == 0) { libclose(lib); continue; }
-            lua_pushstring(L, funcname);           //push key
-            pushfunc(L, lib, func, 0);             //push value
-            lua_rawset(L, -3);                     //t[key]=value
+            lua_rawgeti(L, 3, i + 1);  //push key
+            const char * funcname = lua_tostring(L, -1);
+            if (funcname == 0) { lua_pop(L, 1); libclose(lib); return 0; }
+            void * func = libsym(lib, funcname);
+            if (func == 0) { lua_pop(L, 1); libclose(lib); return 0; }
+            pushfunc(L, lib, func, 0); //push value
+            lua_rawset(L, -3);         //t[key]=value
           }
-          return 1;
-        }
-        void* lib = libopen(libname);
-        if (lib == 0) return 0;
-        void* func = libsym(lib, funcname);
-        if (func == 0) { libclose(lib); return 0; }
-        if (lua_type(L, 4) == LUA_TNUMBER) {
-          lua_pushcfunction(L, ffi_userdata);
-          lua_pushlightuserdata(L, func);
-          lua_pushvalue(L, 4);
-          lua_call(L, 1, 1);
-        } else {
-          pushfunc(L, lib, func, lua_tostring(L, 4));
-        }
-      } return 1;
-
-      case LUA_TTABLE: {  //list of functions
-        int num = (int)lua_rawlen(L, 3);
-        lua_createtable(L, 0, num);
-        for (int i = 0; i < num; i++) {
-          void* lib = libopen(libname);
-          if (lib == 0) return 0;
-          lua_rawgeti(L, 3, i + 1);  //push key
-          const char * funcname = lua_tostring(L, -1);
-          if (funcname == 0) { lua_pop(L, 1); libclose(lib); return 0; }
-          void * func = libsym(lib, funcname);
-          if (func == 0) { lua_pop(L, 1); libclose(lib); return 0; }
-          pushfunc(L, lib, func, 0); //push value
-          lua_rawset(L, -3);         //t[key]=value
-        }
-      } return 1;
-
-      case LUA_TNONE:
-      case LUA_TNIL:
-        //return empty table with __index metamethod that load functions when first called (indexed)
-        lua_createtable(L, 0, 0);
-        lua_createtable(L, 0, 2);  //metatable
-        lua_pushcfunction(L, lib__index);
-        lua_setfield(L, -2, "__index");
-        lua_pushvalue(L, 2);   //lib name
-        lua_setfield(L, -2, "lib");
-        lua_setmetatable(L, -2);
-        return 1;
+        } return 1;
       }
-    } return 1;
+    } return 0;
 
     case LUA_TNUMBER: {         //function pointer
       void* func = (void*)lua_tointeger(L, 2);
@@ -374,6 +375,10 @@ int ffi_pointer(lua_State* L) {
   return p ? (lua_pushinteger(L, *p), 1) : 0;
 }
 
+int ffi_bool(lua_State* L) {
+  lua_pushboolean(L, (int)lua_tointeger(L, 1));
+  return 1;
+}
 
 int userdata_pointer(lua_State* L);
 int userdata_string(lua_State* L);
@@ -385,12 +390,6 @@ int userdata_pack(lua_State* L);
 int userdata_unpack(lua_State* L);
 int userdata_type(lua_State* L);
 int userdata__index(lua_State* L);
-
-
-int ffi_bool(lua_State* L) {
-  lua_pushboolean(L, (int)lua_tointeger(L, 1));
-  return 1;
-}
 
 //#define X(x) {ffi_##x,#x}
 //const luaL_Reg lib[] = { X(string), X(int), X(float), X(double), X(bool), X(pointer), X(userdata), { 0, 0 } };
