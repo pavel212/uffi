@@ -2,7 +2,9 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-void* (*mem_cpy)(void*, const void*, size_t);
+//void* (*mem_cpy)(void*, const void*, size_t);
+void* mem_cpy(void*, const void*, size_t);
+
 
 static void* getuserdatapointer(lua_State* L, int idx, int* size) {
   void* p = lua_touserdata(L, idx);
