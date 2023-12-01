@@ -25,7 +25,6 @@ int libsymnum(uint32_t* lib);
 int make_func(char* code, const void* func, const char* argt);
 int make_cb(char* code, lua_State* L, int ref, const char* argt);
 
-
 int ispackedfloat(double x){ return (((*(uint64_t*)&x) & 0xFFFFFFFF00000000) == 0xFFFFFFFF00000000); }
 double packfloat(float x)  { uint64_t u = 0xFFFFFFFF00000000 | *(uint32_t*)&x; return *(double*)&u; }
 float unpackfloat(double x){ return *(float*)&x; }
@@ -92,15 +91,6 @@ void * luaF_typeto (lua_State * L, int idx){
   luaL_error(L, "ffi: type of argument %d unknown type %d", idx, t);
   return luaF_tonil;
 }
-
-/*
-static void * luaF_to  (char t){ 
-  const char* s = "bdfipstv",
-  const char* p = s;
-  while (t != *p++) if (*p == '\0') return luaF_tonil;
-  return (void*[]){lua_toboolean, lua_tonumberx, lua_tonumberx, lua_tointegerx, luaF_topointer, lua_tolstring, luaF_totable, luaF_tonil} [(p - s - 1)];
-}
-*/
 
 void * luaF_to  (const char t){ 
   switch (t){
@@ -206,7 +196,6 @@ static void pushfunc(lua_State* L, void* lib, void* func, const char* argt) {
     lua_setmetatable(L, -2);
     *code = (uintptr_t)func;
   }
-
   if (lib) {
     lua_pushlightuserdata(L, lib);
     lua_setiuservalue(L, -2, 1);
@@ -246,22 +235,22 @@ int lib__index(lua_State* L) {      // stack: self,     func
 }
 
 int ffi__call(lua_State* L) {
-  if ((lua_type(L, 3) == LUA_TNONE) || (lua_type(L, 3) == LUA_TNIL)) {
-    //return empty table with __index metamethod that load functions when first called (indexed)
-    lua_createtable(L, 0, 0);               //self, lib, {}
-    lua_createtable(L, 0, 2);               //self, lib, {}, mt
-    lua_pushcfunction(L, lib__index);       //self, lib, {}, mt, __index
-    lua_setfield(L, -2, "__index");         //self, lib, {}, mt
-    lua_pushvalue(L, 2);   //lib name       //self, lib, {}, mt, lib
-    lua_setfield(L, -2, "lib");             //self, lib, {}, mt
-    lua_setmetatable(L, -2);                //self, lib, {}
-    return 1;
-  }
-
   switch (lua_type(L, 2)) {    //ffi("lib.dll"[, "func"][, "typestr"]): [1] - self, [2] - lib, [3] - func, [4] - types
     case LUA_TSTRING:{         //lib name
       const char* libname = lua_tostring(L, 2);
       switch (lua_type(L, 3)) {
+        case LUA_TNONE:
+        case LUA_TNIL: {
+          //return empty table with __index metamethod that load functions when first called (indexed)
+          lua_createtable(L, 0, 0);               //self, lib, {}
+          lua_createtable(L, 0, 2);               //self, lib, {}, mt
+          lua_pushcfunction(L, lib__index);       //self, lib, {}, mt, __index
+          lua_setfield(L, -2, "__index");         //self, lib, {}, mt
+          lua_pushvalue(L, 2);   //lib name       //self, lib, {}, mt, lib
+          lua_setfield(L, -2, "lib");             //self, lib, {}, mt
+          lua_setmetatable(L, -2);                //self, lib, {}
+          return 1;
+        }
         case LUA_TSTRING: {   //func name
           const char* funcname = lua_tostring(L, 3);
           if ((funcname[0] == '*') && (funcname[1] == '\0')) {// funcname == "*", load all
@@ -321,6 +310,7 @@ int ffi__call(lua_State* L) {
       pushfunc(L, 0, func, lua_tostring(L, 3));
     } return 1;
 
+    case LUA_TUSERDATA:         //function pointer
     case LUA_TLIGHTUSERDATA: {  //function pointer
       void* func = lua_touserdata(L, 2);
       if (func == 0) return 0;

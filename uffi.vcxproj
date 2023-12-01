@@ -24,7 +24,7 @@
     <ClCompile Include="src\win64.c" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="src\call.asm" />
+    <MASM Include="src\call_win64.asm" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\asm_x64.h" />

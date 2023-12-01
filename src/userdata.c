@@ -1,10 +1,7 @@
 #include <stdint.h>
+#include <string.h>
 #include "lua.h"
 #include "lauxlib.h"
-
-//void* (*mem_cpy)(void*, const void*, size_t);
-void* mem_cpy(void*, const void*, size_t);
-
 
 static void* getuserdatapointer(lua_State* L, int idx, int* size) {
   void* p = lua_touserdata(L, idx);
@@ -29,7 +26,7 @@ int userdata_string(lua_State* L) { //userdata:string(size, offset=0) / userdata
   if (lua_type(L, 2) == LUA_TSTRING) { //write
     int size = (int)lua_rawlen(L, 2);
     if ((size <= 0) || (offset + size > len)) size = len - offset;
-    mem_cpy(&p[offset], lua_tostring(L, 2), size);
+    memcpy(&p[offset], lua_tostring(L, 2), size);
     lua_pushvalue(L, 1);
   }
   else {  //read
@@ -52,11 +49,11 @@ int userdata_int(lua_State* L) { //userdata:int([value][, offset][, size=userdat
   if (size > 8) size = 8;
   if ((size <=0) || (size*(offset+1) > len)) return 0;
   if (lua_isinteger(L, 2)) {
-    mem_cpy(&p[size * offset], &v, size);
+    memcpy(&p[size * offset], &v, size);
     lua_pushvalue(L, 1);
   }
   else {
-    mem_cpy(&v, &p[size * offset], size);
+    memcpy(&v, &p[size * offset], size);
     lua_pushinteger(L, v);
   }
   return 1;
@@ -145,7 +142,7 @@ int userdata_pack(lua_State* L) { //:pack(fmt, values....)
   lua_call(L, lua_gettop(L) - 2, 1);
   const char* s = lua_tostring(L, -1);
   if (len < lua_rawlen(L, -1)) len = (int)lua_rawlen(L, -1);
-  if (s) mem_cpy(p, s, len);
+  if (s) memcpy(p, s, len);
   lua_pop(L, 1);        //remove result of string.pack and return self
   return 1;
 }
@@ -257,7 +254,7 @@ int ffi_userdata(lua_State* L) {
     case LUA_TSTRING: {
       size_t length = lua_rawlen(L, 2);
       char* data = lua_newuserdatauv(L, length + 1, 0);
-      mem_cpy(data, lua_tostring(L, 2), length + 1);
+      memcpy(data, lua_tostring(L, 2), length + 1);
     } break;
 
     case LUA_TTABLE: {
