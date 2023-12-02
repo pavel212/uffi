@@ -235,22 +235,21 @@ int lib__index(lua_State* L) {      // stack: self,     func
 }
 
 int ffi__call(lua_State* L) {
+  if (((lua_type(L,2) == LUA_TTABLE) || (lua_type(L,2) == LUA_TSTRING)) && ((lua_type(L,3) == LUA_TNONE) || (lua_type(L,3) == LUA_TNIL))){
+    //return empty table with __index metamethod that load functions when first called (indexed)
+    lua_createtable(L, 0, 0);               //self, lib, {}
+    lua_createtable(L, 0, 2);               //self, lib, {}, mt
+    lua_pushcfunction(L, lib__index);       //self, lib, {}, mt, __index
+    lua_setfield(L, -2, "__index");         //self, lib, {}, mt
+    lua_pushvalue(L, 2);   //lib name       //self, lib, {}, mt, lib
+    lua_setfield(L, -2, "lib");             //self, lib, {}, mt
+    lua_setmetatable(L, -2);                //self, lib, {}
+    return 1;
+  }
   switch (lua_type(L, 2)) {    //ffi("lib.dll"[, "func"][, "typestr"]): [1] - self, [2] - lib, [3] - func, [4] - types
     case LUA_TSTRING:{         //lib name
       const char* libname = lua_tostring(L, 2);
       switch (lua_type(L, 3)) {
-        case LUA_TNONE:
-        case LUA_TNIL: {
-          //return empty table with __index metamethod that load functions when first called (indexed)
-          lua_createtable(L, 0, 0);               //self, lib, {}
-          lua_createtable(L, 0, 2);               //self, lib, {}, mt
-          lua_pushcfunction(L, lib__index);       //self, lib, {}, mt, __index
-          lua_setfield(L, -2, "__index");         //self, lib, {}, mt
-          lua_pushvalue(L, 2);   //lib name       //self, lib, {}, mt, lib
-          lua_setfield(L, -2, "lib");             //self, lib, {}, mt
-          lua_setmetatable(L, -2);                //self, lib, {}
-          return 1;
-        }
         case LUA_TSTRING: {   //func name
           const char* funcname = lua_tostring(L, 3);
           if ((funcname[0] == '*') && (funcname[1] == '\0')) {// funcname == "*", load all

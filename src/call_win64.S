@@ -46,12 +46,10 @@ xor %r8, %r8
 call * %rax                  //call lua_to
 
 cmp $0, %r14
-jz store_int
-store_float:
-movq %xmm0, 16(%rsp,%r13,8)  //store floating point arg
-jmp arg_loop
+je store_int
+movq %xmm0, %rax
 store_int:
-mov %rax, 16(%rsp,%r13,8)    //store integer arg
+mov %rax, 16(%rsp,%r13,8)    //store
 jmp arg_loop
 arg_loop_end:
 

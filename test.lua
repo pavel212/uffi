@@ -1,7 +1,13 @@
+io.read()
 local ffi = require ("ffi")
 local lib = ffi({"user32","msvcrt"})
-print(ffi.float(lib.cosf(ffi.float(math.pi/3))))
+local msg = ffi("user32","MessageBoxA")
+local c = ffi("msvcrt", "cos")
+msg(0,"C","D",0)
+print(c(math.pi/3))
 lib.MessageBoxA(0,"A","B",0)
+print(lib.cos(math.pi/4))
+print(ffi.float(lib.cosf(ffi.float(math.pi/3))))
 os.exit()
 
 
