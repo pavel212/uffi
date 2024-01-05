@@ -1,24 +1,59 @@
+<<<<<<< HEAD
+#include <sys/mman.h>
 #include <stdint.h>
+#include <string.h>
+=======
+#include <stdint.h>
+>>>>>>> 188e16889261aed12cc7ee53e53cc1aa37234ece
 #include "lua.h"
 #include "lauxlib.h"
 #include "asm_x64.h"
 
+<<<<<<< HEAD
+#include <elf.h>
+
+//tcc does not like 'link.h'
+#define RTLD_LAZY 1
+#define RTLD_DI_LINKMAP 2
+
+struct link_map{
+  Elf64_Addr l_addr;
+  char *l_name;
+  Elf64_Dyn *l_ld;
+//...
+};
+
+void *dlopen(const char *filename, int flags);
+int dlinfo(void *restrict handle, int request, void *restrict info);
+char *dlerror(void);
+void *dlsym(void *handle, const char *symbol);
+int dlclose(void *handle);
+=======
 #define _GNU_SOURCE
 #include <link.h>
 #include <dlfcn.h>
 #include <stdio.h>
+>>>>>>> 188e16889261aed12cc7ee53e53cc1aa37234ece
 
 //dynlib
 void* libopen(const char* filename){ return dlopen(filename, 0); }
 void* libsym(void* lib, const char* name){  return dlsym(lib, name); }
+<<<<<<< HEAD
+int   libclose(void* lib){ return dlclose(lib); }
+=======
 int   libclose(void* lib){ return dlcose(lib); }
+>>>>>>> 188e16889261aed12cc7ee53e53cc1aa37234ece
 
 static int libsyminfo(uint32_t* lib, Elf64_Sym ** symtab, char ** strtab){
   if (lib == 0) return 0;
   struct link_map * map = 0;
   dlinfo(lib, RTLD_DI_LINKMAP, &map);
   int syment = 0;
+<<<<<<< HEAD
+  for (Elf64_Dyn * section = map->l_ld; section->d_tag != DT_NULL; section++){
+=======
   for (ElfW(Dyn) * section = map->l_ld; section->d_tag != DT_NULL; section++){
+>>>>>>> 188e16889261aed12cc7ee53e53cc1aa37234ece
     switch(section->d_tag){
       case DT_SYMTAB: *symtab = (Elf64_Sym *)section->d_un.d_ptr; break;
       case DT_STRTAB: *strtab = (char*)section->d_un.d_ptr; break;
@@ -159,7 +194,11 @@ int make_cb(char* code, lua_State* L, int ref, const char* argt) {
     _sub_rsp_DW(p, stack);
 
 //store arguments from regs onto stack before calling rawgeti that gets lua function and lua_push to put arguments on lua stack
+<<<<<<< HEAD
+    int argf = 0, argi = 0, args = 0;
+=======
     argf = argi = args = 0;
+>>>>>>> 188e16889261aed12cc7ee53e53cc1aa37234ece
     for (int i = 1; i < argc; i++){
       if (argt[i] == 'f' || argt[i] == 'd'){
         switch(argf++) {

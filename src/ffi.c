@@ -11,7 +11,6 @@ int func__call_auto(lua_State* L);
 //userdata.c
 int ffi_userdata(lua_State* L);
 
-
 //win64.c
 int mprotect_exec(void* addr, size_t len);
 int mprotect_noexec(void* addr, size_t len);
@@ -384,7 +383,10 @@ int userdata__index(lua_State* L);
 //const luaL_Reg lib[] = { X(string), X(int), X(float), X(double), X(bool), X(pointer), X(userdata), { 0, 0 } };
 
 //extern "C" 
-__declspec(dllexport) int luaopen_ffi(lua_State * L){
+#ifdef _WIN64
+__declspec(dllexport) 
+#endif
+int luaopen_ffi(lua_State * L){
 //  luaL_newlib(L, lib);
   
   lua_createtable(L, 0, 7);  //lib
