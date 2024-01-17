@@ -7,7 +7,6 @@ gl.GetProcAddress = ffi("opengl32", "wglGetProcAddress", "ps")
 setmetatable(gl, {
   __index = function(t, k)
     t[k] = ffi("opengl32", "gl"..k) or ffi(t.GetProcAddress("gl"..k)) or getmetatable(t).__lib_error("gl"..k)
-    print("gl.__index", ffi("opengl32", "gl"..k), t.GetProcAddress("gl"..k))
     return t[k]
   end,
   __lib_error = function(name) error("Unable to load '"..name.."' from opengl32.dll or wglGetProcAddress") end

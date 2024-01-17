@@ -9,8 +9,8 @@ push %r15
 
 mov %rdi, %rbx             #first argument lua_State * L passed in rdi, store in rbx
 
-#mov %rbx, %rdi
-call lua_gettop           
+//mov %rbx, %rdi
+call lua_gettop
 mov %rax, %r12             #store (number of arguments+1) in r12
 
 shr $1, %eax
@@ -67,12 +67,12 @@ store_end:
 
 mov %r10, %rax
 imul %r11, %rax
-jz arg_loop
+jz arg_loop     #argi == 0 || argf == 0
 inc %r15
 
 jmp arg_loop
 
-#just here for tcc label arithmetics require labels to be defined before
+#just put here for tcc label arithmetics that require labels to be defined before
 ld_rdi:
 mov %rax, %rdi
 jmp ld_end
@@ -92,6 +92,7 @@ ld_r9:
 mov %rax, %r9
 jmp ld_end
 jmp ld_stack   # >6 int arg goes to stack
+
 ld_xmm0:
 movq %rax, %xmm0
 jmp ld_end
@@ -150,9 +151,13 @@ mov $7, %r11
 cmp %r13, %r11
 cmovle %r13, %r11
 dec %r11
-
 imul ld_rsi - ld_rdi, %r11
-add ld_rdi, %r11
+//add ld_rdi, %r11
+
+//lea 0(%rip), %rax
+//add %rax, %r11
+
+mov (%rsp,%r13,8), %rax
 jmp *%r11
 
 ld_float:
@@ -160,9 +165,11 @@ mov $9, %r11
 cmp %r13, %r11
 cmovle %r13, %r11
 dec %r11
-
 imul ld_xmm1 - ld_xmm0, %r11
-add ld_xmm0, %r11
+
+//add ld_xmm0, %r11
+
+mov (%rsp,%r13,8), %rax
 jmp *%r11
 
 ld_end:
@@ -191,6 +198,7 @@ shr $1, %r12
 shl $4, %r12
 sub %r15, %r12
 add %r12, %rsp                  #restore stack
+
 
 pop %r15
 pop %r14

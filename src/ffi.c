@@ -11,7 +11,7 @@ int func__call_auto(lua_State* L);
 //userdata.c
 int ffi_userdata(lua_State* L);
 
-//win64.c
+//win64.c / sysV64.c
 int mprotect_exec(void* addr, size_t len);
 int mprotect_noexec(void* addr, size_t len);
 
@@ -21,12 +21,20 @@ int libclose(void* handle);
 const char* libsymname(uint32_t* lib, uint32_t idx);
 int libsymnum(uint32_t* lib);
 
-int make_func(char* code, const void* func, const char* argt);
-int make_cb(char* code, lua_State* L, int ref, const char* argt);
+int make_func(uint8_t* code, const void* func, const char* argt);
+int make_cb(uint8_t* code, lua_State* L, int ref, const char* argt);
 
-int ispackedfloat(double x){ return (((*(uint64_t*)&x) & 0xFFFFFFFF00000000) == 0xFFFFFFFF00000000); }
-double packfloat(float x)  { uint64_t u = 0xFFFFFFFF00000000 | *(uint32_t*)&x; return *(double*)&u; }
-float unpackfloat(double x){ return *(float*)&x; }
+
+
+
+//int ispackedfloat(double x){ return (((*(uint64_t*)&x) & 0xFFFFFFFF00000000) == 0xFFFFFFFF00000000); }
+//double packfloat(float x)  { uint64_t u = 0xFFFFFFFF00000000 | *(uint32_t*)&x; return *(double*)&u; }
+//float unpackfloat(double x){ return *(float*)&x; }
+
+//gcc warnings...
+int ispackedfloat(double x){ uint64_t *p = (void*)&x; return ((0xFFFFFFFF00000000 & *p) == 0xFFFFFFFF00000000); }
+double packfloat(float x)  { double d = 0; uint64_t *pu64 = (void*)&d; uint32_t *pu32 = (void*)&x; *pu64 = 0xFFFFFFFF00000000 | *pu32; return d;}
+float unpackfloat(double x){ float *p = (void*)&x; return *p; }
 
 void voidfunc() {}
 int luaF_isfloat (lua_State * L, int idx){ return ((lua_type(L, idx) == LUA_TNUMBER) && (!lua_isinteger(L, idx))); }
@@ -34,7 +42,7 @@ void luaF_tonil(lua_State * L, int idx){}
 float luaF_tofloat(lua_State* L, int idx) { return unpackfloat(lua_tonumber(L, idx)); }
 void* luaF_topointer(lua_State * L, int idx) { return lua_isinteger(L, idx) ? (void*)lua_tointeger(L, idx) : lua_touserdata(L, idx); }
 
-void* luaF_totable(lua_State* L, int idx) { 
+void* luaF_totable(lua_State* L, int idx) {
   lua_rawgeti(L, idx, 1);
   if (LUA_TTABLE == lua_type(L, -1)) {
     lua_pop(L, 1);
@@ -69,14 +77,14 @@ void* luaF_totable(lua_State* L, int idx) {
     }
     return data;
   }
-  
+
   return 0;
 }
 
-void * luaF_typeto (lua_State * L, int idx){ 
+void * luaF_typeto (lua_State * L, int idx){
   int t = lua_type(L, idx);
   switch (t){
-    case LUA_TNONE:          
+    case LUA_TNONE:
     case LUA_TNIL:           return luaF_tonil;
     case LUA_TBOOLEAN:       return lua_toboolean;
     case LUA_TLIGHTUSERDATA: return lua_touserdata;
@@ -91,7 +99,7 @@ void * luaF_typeto (lua_State * L, int idx){
   return luaF_tonil;
 }
 
-void * luaF_to  (const char t){ 
+void * luaF_to  (const char t){
   switch (t){
     case 'b': return lua_toboolean;
     case 'd': return lua_tonumberx;
@@ -132,7 +140,7 @@ int func__call_cb(lua_State * L){ //get rid of self argument and call lua functi
     int num = lua_gettop(L) - 2;  //+2: [1] = self, [2] func
     lua_call(L, num, LUA_MULTRET);
     return lua_gettop(L) - num;
-  } 
+  }
   lua_pop(L, 1);
   return 0;
 }
@@ -142,7 +150,7 @@ int func__gc(lua_State * L){
   if (lua_islightuserdata(L, -1)){
     void * lib = lua_touserdata(L, -1);
     if (lib) libclose(lib);
-  } 
+  }
   if (lua_isinteger(L, -1)){
     int ref = (int)lua_tointeger(L, -1);
     luaL_unref(L, LUA_REGISTRYINDEX, ref);
@@ -184,11 +192,11 @@ static void pushfuncmetatable(lua_State * L, int(*__call)(lua_State*)){
 static void pushfunc(lua_State* L, void* lib, void* func, const char* argt) {
   if (argt) {
     int size = codesize_func(argt);
-    char* code = lua_newuserdatauv(L, size, 1); //1 uservalue to store lib pointer for FreeLibrary in __gc
+    uint8_t* code = lua_newuserdatauv(L, size, 1); //1 uservalue to store lib pointer for FreeLibrary in __gc
     pushfuncmetatable(L, func__call_typed);
     lua_setmetatable(L, -2);
     size = make_func(code, func, argt);
-    mprotect_exec(code, size);
+    int err = mprotect_exec(code, size);
   } else {
     uintptr_t* code = lua_newuserdatauv(L, sizeof(uintptr_t*), 1); //void* userdata to store func pointer, 1 uservalue to store lib pointer for FreeLibrary in __gc
     pushfuncmetatable(L, func__call_auto);
@@ -224,7 +232,7 @@ int lib__index(lua_State* L) {      // stack: self,     func
     lua_call(L, 3, 1);                // stack: self,     libt,    func,    code
     if (lua_type(L, -1) == LUA_TUSERDATA) {
       lua_pushvalue(L, -1);           // stack: self,     libt,    func,    code,      code
-      lua_insert(L, 3);               // stack: self,     libt,    code,    func,      code, 
+      lua_insert(L, 3);               // stack: self,     libt,    code,    func,      code,
       lua_settable(L, 1);             // self[func] = code    // stack: self,    libt,   code
       return 1;
     }
@@ -232,7 +240,6 @@ int lib__index(lua_State* L) {      // stack: self,     func
   }
   return 0;
 }
-
 int ffi__call(lua_State* L) {
   if (((lua_type(L,2) == LUA_TTABLE) || (lua_type(L,2) == LUA_TSTRING)) && ((lua_type(L,3) == LUA_TNONE) || (lua_type(L,3) == LUA_TNIL))){
     //return empty table with __index metamethod that load functions when first called (indexed)
@@ -320,7 +327,7 @@ int ffi__call(lua_State* L) {
       int ref = luaL_ref(L, LUA_REGISTRYINDEX);
       const char* argt = lua_tostring(L, 3);
       int size = codesize_cb(argt);
-      char* code = lua_newuserdatauv(L, size, 1); //1 uservalue to store lua function reference for luaL_unref, for __gc
+      uint8_t* code = lua_newuserdatauv(L, size, 1); //1 uservalue to store lua function reference for luaL_unref, for __gc
       lua_pushinteger(L, ref);
       lua_setiuservalue(L, -2, 1);
       pushfuncmetatable(L, func__call_cb);
@@ -382,13 +389,13 @@ int userdata__index(lua_State* L);
 //#define X(x) {ffi_##x,#x}
 //const luaL_Reg lib[] = { X(string), X(int), X(float), X(double), X(bool), X(pointer), X(userdata), { 0, 0 } };
 
-//extern "C" 
+//extern "C"
 #ifdef _WIN64
-__declspec(dllexport) 
+__declspec(dllexport)
 #endif
 int luaopen_ffi(lua_State * L){
 //  luaL_newlib(L, lib);
-  
+
   lua_createtable(L, 0, 7);  //lib
     lua_pushcfunction(L, ffi_string);
     lua_setfield(L, -2, "string");
@@ -402,7 +409,7 @@ int luaopen_ffi(lua_State * L){
     lua_setfield(L, -2, "bool");
     lua_pushcfunction(L, ffi_pointer);
     lua_setfield(L, -2, "pointer");
-  
+
     lua_createtable(L, 0, 8);  //ffi.userdata table
       lua_pushcfunction(L, userdata_pointer);
       lua_setfield(L, -2, "pointer");

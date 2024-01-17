@@ -25,7 +25,8 @@
 */
 
 #define _ARGC(...) sizeof((const uint8_t[]){__VA_ARGS__})
-#define _B(p,...) ( memcpy(p, (const uint8_t[]){__VA_ARGS__}, _ARGC(__VA_ARGS__) ), (uint8_t*)p += _ARGC(__VA_ARGS__) )
+//#define _B(p,...) ( memcpy(p, (const uint8_t[]){__VA_ARGS__}, _ARGC(__VA_ARGS__) ), *(uintptr_t*)(&p) += _ARGC(__VA_ARGS__) )
+#define _B(p,...) ( memcpy(p, (const uint8_t[]){__VA_ARGS__}, _ARGC(__VA_ARGS__) ), p += _ARGC(__VA_ARGS__) )
 
 #define _W(x)  (uint8_t)(x), (uint8_t)((x)>>8)
 #define _DW(x) _W(x), _W((x)>>16)
@@ -39,15 +40,22 @@
 #define _mov_rbx_rcx(p)        _B(p, 0x48, 0x89, 0xCB)
 #define _mov_rcx_rbx(p)        _B(p, 0x48, 0x89, 0xD9)
 
+#define _mov_rbx_rdi(p)        _B(p, 0x48, 0x89, 0xFB)
+#define _mov_rdi_rbx(p)        _B(p, 0x48, 0x89, 0xDF)
+
 #define _mov_rbx_rax(p)        _B(p, 0x48, 0x89, 0xC3)
 #define _mov_rcx_rax(p)        _B(p, 0x48, 0x89, 0xC1)
 #define _mov_rdx_rax(p)        _B(p, 0x48, 0x89, 0xC2)
+#define _mov_rdi_rax(p)        _B(p, 0x48, 0x89, 0xC7)
+#define _mov_rsi_rax(p)        _B(p, 0x48, 0x89, 0xC6)
 #define _mov_r8_rax(p)         _B(p, 0x49, 0x89, 0xC0)
 #define _mov_r9_rax(p)         _B(p, 0x49, 0x89, 0xC1)
 
 #define _mov_rax_rbx(p)        _B(p, 0x48, 0x89, 0xD8)
 #define _mov_rax_rcx(p)        _B(p, 0x48, 0x89, 0xC8)
 #define _mov_rax_rdx(p)        _B(p, 0x48, 0x89, 0xD0)
+#define _mov_rax_rdi(p)        _B(p, 0x48, 0x89, 0xF8)
+#define _mov_rax_rsi(p)        _B(p, 0x48, 0x89, 0xF0)
 #define _mov_rax_r8(p)         _B(p, 0x4C, 0x89, 0xC0)
 #define _mov_rax_r9(p)         _B(p, 0x4C, 0x89, 0xC8)
 
@@ -56,6 +64,8 @@
 #define _mov_rbx_DW(p,x)       _B(p, 0x48, 0xC7, 0xC3, _DW(x))
 #define _mov_rcx_DW(p,x)       _B(p, 0x48, 0xC7, 0xC1, _DW(x))
 #define _mov_rdx_DW(p,x)       _B(p, 0x48, 0xC7, 0xC2, _DW(x))
+#define _mov_rdi_DW(p,x)       _B(p, 0x48, 0xC7, 0xC7, _DW(x))
+#define _mov_rsi_DW(p,x)       _B(p, 0x48, 0xC7, 0xC6, _DW(x))
 #define _mov_r8_DW(p,x)        _B(p, 0x49, 0xC7, 0xC0, _DW(x))
 #define _mov_r9_DW(p,x)        _B(p, 0x49, 0xC7, 0xC1, _DW(x))
 
@@ -63,6 +73,8 @@
 #define _mov_rbx_QW(p,x)       _B(p, 0x48, 0xBB, _QW(x))
 #define _mov_rcx_QW(p,x)       _B(p, 0x48, 0xB9, _QW(x))
 #define _mov_rdx_QW(p,x)       _B(p, 0x48, 0xBA, _QW(x))
+#define _mov_rdi_QW(p,x)       _B(p, 0x48, 0xBF, _QW(x))
+#define _mov_rsi_QW(p,x)       _B(p, 0x48, 0xBE, _QW(x))
 #define _mov_r8_QW(p,x)        _B(p, 0x49, 0xB8, _QW(x))
 #define _mov_r9_QW(p,x)        _B(p, 0x49, 0xB9, _QW(x))
 
@@ -77,6 +89,8 @@
 #define _ld_rbx(p,x)           _B(p,       0x48, 0x8B, 0x9C, 0x24, _DW(x))
 #define _ld_rcx(p,x)           _B(p,       0x48, 0x8B, 0x8C, 0x24, _DW(x))
 #define _ld_rdx(p,x)           _B(p,       0x48, 0x8B, 0x94, 0x24, _DW(x))
+#define _ld_rdi(p,x)           _B(p,       0x48, 0x8B, 0xBC, 0x24, _DW(x))
+#define _ld_rsi(p,x)           _B(p,       0x48, 0x8B, 0xB4, 0x24, _DW(x))
 #define _ld_r8(p,x)            _B(p,       0x4C, 0x8B, 0x84, 0x24, _DW(x))
 #define _ld_r9(p,x)            _B(p,       0x4C, 0x8B, 0x8C, 0x24, _DW(x))
 #define _ld_xmm0(p,x)          _B(p, 0xF3, 0x0F, 0x7E, 0x84, 0x24, _DW(x))
@@ -93,6 +107,8 @@
 #define _st_rbx(p,x)           _B(p,       0x48, 0x89, 0x9C, 0x24, _DW(x))
 #define _st_rcx(p,x)           _B(p,       0x48, 0x89, 0x8C, 0x24, _DW(x))
 #define _st_rdx(p,x)           _B(p,       0x48, 0x89, 0x94, 0x24, _DW(x))
+#define _st_rdi(p,x)           _B(p,       0x48, 0x89, 0xBC, 0x24, _DW(x))
+#define _st_rsi(p,x)           _B(p,       0x48, 0x89, 0xB4, 0x24, _DW(x))
 #define _st_r8(p,x)            _B(p,       0x4C, 0x89, 0x84, 0x24, _DW(x))
 #define _st_r9(p,x)            _B(p,       0x4C, 0x89, 0x8C, 0x24, _DW(x))
 #define _st_xmm0(p,x)          _B(p, 0x66, 0x0F, 0xD6, 0x84, 0x24, _DW(x))
@@ -106,10 +122,16 @@
 #define _st_xmm(p,r,x)         _B(p, 0x66, 0x0F, 0xD6, 0x84+(r)*8, 0x24, _DW(x))
 
 #define _mov_xmm0f_xmm0(p)     _B(p, 0xF2, 0x0F, 0x5A, 0xC0)
+#define _mov_xmm0_xmm0f(p)     _B(p, 0xF3, 0x0F, 0x5A, 0xC0)
+
 #define _mov_xmm1_xmm0f(p)     _B(p, 0xF3, 0x0F, 0x5A, 0xC8)
 #define _mov_xmm1_xmm1f(p)     _B(p, 0xF3, 0x0F, 0x5A, 0xC9)
+
 #define _mov_xmm1_xmm0(p)      _B(p, 0xF3, 0x0F, 0x7E, 0xC8)
 #define _mov_xmm0_xmm1(p)      _B(p, 0xF3, 0x0F, 0x7E, 0xC1)
+
+#define _mov_rbx_xmm0(p)      _B(p, 0x66, 0x48, 0x0F, 0x7E, 0xC3)
+#define _mov_xmm0_rbx(p)      _B(p, 0x66, 0x48, 0x0F, 0x6E, 0xC3)
 
 #define _call_rax(p)           _B(p, 0xFF, 0xD0)
 #define _ret(p)                _B(p, 0xC3)

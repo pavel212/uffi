@@ -55,10 +55,10 @@ void* luaF_typeto(lua_State* L, int idx);
 void* luaF_to(const char t);
 void* luaF_push(const char t);
 
-int make_func(char* code, const void* func, const char* argt) {
+int make_func(uint8_t* code, const void* func, const char* argt) {
   int argc = (int)strlen(argt);
   int stack = 16 * ((argc + 4) >> 1);  //32 bytes of shadow space + space for function arguments multiple of 16 bytes to keep stack alignment
-  char* p = code;
+  uint8_t* p = code;
   {
     //prologue
     _push_rbx(p);        //additional push rbx makes stack aligned to 16.
@@ -109,9 +109,9 @@ int make_func(char* code, const void* func, const char* argt) {
   return (int)(p - code); //length of generated code
 }
 
-int make_cb(char* code, lua_State* L, int ref, const char* argt) {
+int make_cb(uint8_t* code, lua_State* L, int ref, const char* argt) {
   int argc = (int)strlen(argt);
-  char* p = code;
+  uint8_t* p = code;
   {
     _push_rbx(p);     //push rbx to align stack to 16 and store lua_State * L in rbx
     _mov_rbx_QW(p, (uintptr_t)L);   //as we are generating ordinary C function, lua_State * L is passed as argument from ffi and stored as immediate constant in code.

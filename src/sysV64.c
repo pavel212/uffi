@@ -5,6 +5,8 @@
 #include "lauxlib.h"
 #include "asm_x64.h"
 
+#include <unistd.h>
+
 #include <elf.h>
 
 //tcc does not like 'link.h'
@@ -25,7 +27,7 @@ void *dlsym(void *handle, const char *symbol);
 int dlclose(void *handle);
 
 //dynlib
-void* libopen(const char* filename){ return dlopen(filename, 0); }
+void* libopen(const char* filename){ return dlopen(filename, RTLD_LAZY); }
 void* libsym(void* lib, const char* name){  return dlsym(lib, name); }
 int   libclose(void* lib){ return dlclose(lib); }
 
@@ -69,8 +71,19 @@ int libsymnum(uint32_t* lib) {
   return num;
 }
 
-int mprotect_exec(void* addr, size_t len) { return mprotect(addr, len,  PROT_READ | PROT_WRITE | PROT_EXEC); }
-int mprotect_noexec(void* addr, size_t len) { return mprotect(addr, len,  PROT_READ | PROT_WRITE); }
+int mprotect_exec(void* addr, size_t len) {
+  const size_t page_mask = sysconf(_SC_PAGESIZE) - 1;
+  len += (uintptr_t)addr & page_mask;
+  addr = (void*) ((uintptr_t)addr & ~page_mask);
+  return mprotect(addr, len,  PROT_READ | PROT_WRITE | PROT_EXEC); 
+}
+
+int mprotect_noexec(void* addr, size_t len) { 
+  const size_t page_mask = sysconf(_SC_PAGESIZE) - 1;
+  len += (uintptr_t)addr & page_mask;
+  addr = (void*) ((uintptr_t)addr & ~page_mask);
+  return mprotect(addr, len,  PROT_READ | PROT_WRITE); 
+}
 
 //codegen
 void* luaF_typeto(lua_State* L, int idx);
@@ -78,12 +91,12 @@ void* luaF_to(const char t);
 void* luaF_push(const char t);
 
 //rdi,rsi,rdx,rcx,r8,r9 / xmm0..7
-int make_func(char* code, const void* func, const char* argt) {
+int make_func(uint8_t* code, const void* func, const char* argt) {
   int argc = (int)strlen(argt);
   int stack = 16 * ((argc + 1) >> 1);  //space for function arguments multiple of 16 bytes to keep stack alignment
   int argi = 6, argf = 8, args = 0, stack0 = 0;   //number of arguments: integer reg, float reg, on stack.
 
-  char* p = code;
+  uint8_t* p = code;
   {
 //prologue
     _push_rbx(p);            //additional push rbx makes stack aligned to 16.
@@ -163,10 +176,10 @@ int make_func(char* code, const void* func, const char* argt) {
   return (int)(p - code); //length of generated code
 }
 
-int make_cb(char* code, lua_State* L, int ref, const char* argt) {
+int make_cb(uint8_t* code, lua_State* L, int ref, const char* argt) {
   int argc = (int)strlen(argt);
   int stack = 16 * ((argc + 1) >> 1);  //space for function arguments multiple of 16 bytes to keep stack alignment
-  char* p = code;
+  uint8_t* p = code;
   {
 //prologue
     _push_rbx(p);     //push rbx to align stack to 16 and store lua_State * L in rbx

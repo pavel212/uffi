@@ -157,14 +157,14 @@ int userdata_type(lua_State* L) {
   }
 
   if (type == LUA_TSTRING) {  //set __type to ffi.userdata[str]
-    lua_getfield(L, -1, "__userdata");  //stack: self, ..., metatable, __index 
+    lua_getfield(L, -1, "__userdata");  //stack: self, ..., metatable, __index
     lua_pushvalue(L, 2);                //stack: self, ..., metatable, __index, arg
     lua_rawget(L, -2);                  //stack: self, ..., metatable, __index, userdata[arg]
     lua_setfield(L, -3, "__type");
     lua_settop(L, 1);
     return 1;
   }
-  
+
   if (type == LUA_TFUNCTION) {
     lua_pushvalue(L, 2);           //stack: self, ..., metatable, arg
     lua_setfield(L, -2, "__type");
@@ -235,8 +235,8 @@ int userdata_unpack(lua_State* L) { //:unpack(fmt, pos)
   lua_getglobal(L, "string");
   lua_getfield(L, -1, "unpack");
   lua_insert(L, 2);     //stack: [1]=self, [2]=string.unpack, [3]=fmt, [4]=pos,    [-1]=string
-  lua_pop(L, 1);        //stack: [1]=self, [2]=string.unpack, [3]=fmt, [4]=pos,  
-  lua_pushlstring(L, p, len);
+  lua_pop(L, 1);        //stack: [1]=self, [2]=string.unpack, [3]=fmt, [4]=pos,
+  lua_pushlstring(L, (const char *)p, len);
   lua_insert(L, 4);
   lua_call(L, lua_gettop(L) - 2, LUA_MULTRET);
   return lua_gettop(L) - 1;
@@ -247,8 +247,9 @@ int ffi_userdata(lua_State* L) {
     case LUA_TNUMBER: {
       int length = (int)lua_tointeger(L, 2);
       if (length <= 0) return 0;
+//      lua_newuserdatauv(L, length, 0);
       void* data = lua_newuserdatauv(L, length, 0);
-//      memset(data, 0, length);
+      memset(data, 0, length);
     } break;
 
     case LUA_TSTRING: {
@@ -267,7 +268,7 @@ int ffi_userdata(lua_State* L) {
         lua_call(L, 2, 1);
         data[i] = (uintptr_t)lua_touserdata(L, -1);
       }
-      
+
     } break;
 
     case LUA_TLIGHTUSERDATA: {
@@ -290,7 +291,7 @@ int ffi_userdata(lua_State* L) {
 
     lua_pushvalue(L, 1);  //ffi.userdata
     lua_setfield(L, -2, "__userdata");  //for indexing of ffi.userdata functions
-     
+
     lua_pushcfunction(L, userdata__index);
     lua_setfield(L, -2, "__call");   //for now () for indexing as array instead of []: http://lua-users.org/lists/lua-l/2023-08/msg00122.html
 
