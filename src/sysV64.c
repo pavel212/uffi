@@ -235,7 +235,7 @@ int make_cb(uint8_t* code, lua_State* L, int ref, const char* argt) {
     _mov_rsi_DW(p, argc - 1);
     _mov_rdx_DW(p, 1);
     _clr_rcx(p);
-    _st_r8(p, 32);
+    _clr_r8(p);
     _call(p, lua_callk);   //lua_callk(L, argc-1, 1, 0, 0); lua function always return 1 value, nil for void f() callback
 
 //get return value to C with lua_to
