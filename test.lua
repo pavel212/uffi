@@ -1,12 +1,13 @@
-package.path = package.path ..";.\\example\\?.lua"
-dofile ("example/hello_glfw.lua")
-os.exit()
-
 local ffi = require ("ffi")
-local func = ffi("libm.so.6", "cos", "dd")
-print(func(1.57))
+local cosf = ffi("libm.so.6", "cosf", "ff")
+print("cosf:", cosf(1.57))
+
+local cos = ffi("libm.so.6", "cos")
+print("cos:", cos(1.57))
 os.exit()
 
+
+io.read()
 local ffi = require ("ffi")
 local lib = ffi({"user32","msvcrt"})
 local msg = ffi("user32","MessageBoxA")
@@ -22,6 +23,10 @@ os.exit()
 package.path = package.path ..";.\\example\\?.lua"
 local ffi = require ("ffi")
 local gl = require ("gl")
+os.exit()
+
+package.path = package.path ..";.\\example\\?.lua"
+dofile ("example/hello_glfw.lua")
 os.exit()
 
 local ffi = require("ffi")

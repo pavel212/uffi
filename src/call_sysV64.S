@@ -22,12 +22,13 @@ mov %rbx, %rdi
 mov $1, %rsi
 call lua_touserdata
 push %rax                  #put C function on stack
+push %rbx                  #lua_state *L as well just to keep stack aligned
 
 #for (int i = 1; i < argc; i++) arg[i] = arg_to(L, i+1)
-mov $6, %r10               #argi
-mov $8, %r11               #argf
+mov $5, %r10               #argi
+mov $7, %r11               #argf
 xor %r15, %r15             #stack0
-xor %r14, %r14             #isfloat bitfield, <64 function args!
+xor %r14, %r14             #isfloat bitfield, <64 function float args!
 xor %r13, %r13             #i
 inc %r13
 arg_loop:
@@ -53,13 +54,13 @@ call * %rax                #call lua_to
 
 test $1, %r14
 jz store_int
-movq %xmm0, -8(%rsp,%r13,8)  #store
+movq %xmm0, (%rsp,%r13,8) #store  ,r13 +1 (self), +8 -> +16bytes, stack: func, L, args...
 test %r11, %r11
 jz store_end
 dec %r11
 jmp store_end
 store_int:
-mov %rax, -8(%rsp,%r13,8)  #store
+mov %rax, (%rsp,%r13,8)   #store
 test %r10, %r10
 jz store_end
 dec %r10
@@ -71,27 +72,74 @@ jz arg_loop     #argi == 0 || argf == 0
 inc %r15
 
 jmp arg_loop
+arg_loop_end:
 
-#just put here for tcc label arithmetics that require labels to be defined before
-ld_rdi:
-mov %rax, %rdi
+#shift r14 to the left
+mov $65, %cl
+sub %r12b, %cl
+shl %cl, %r14
+
+#load args to registers/stack
+#for (int i = 1; i < argc; i++) load_arg[i] -> reg/stack before func call
+xor %r13, %r13
+inc %r13
+
+xor %r10, %r10        #r10 - argi counter
+xor %r11, %r11        #r11 - argf counter
+                      #r12 - number of arguments
+                      #r13 - i
+                      #r14 - bit mask for float args
+                      #r15 - offset for first stack arg
+mov %r15, %rbx
+
+ld_loop:
+cmp %r12, %r13
+jge ld_loop_end
+inc %r13
+
+mov (%rsp,%r13,8), %rax
+
+shl $1, %r14
+jc ld_float
+
+ld_int:
+                     #jump table?, PIC?
+cmp $0, %r10
+cmove %rax, %rdi
+cmp $1, %r10
+cmove %rax, %rsi
+cmp $2, %r10
+cmove %rax, %rdx
+cmp $3, %r10
+cmove %rax, %rcx
+cmp $4, %r10
+cmove %rax, %r8
+cmp $5, %r10
+cmove %rax, %r9
+mov %rax, 16(%rsp,%rbx,8)
+inc %rbx
 jmp ld_end
-ld_rsi:
-mov %rax, %rsi
+
+ld_float:
+cmp $0, %r11
+je ld_xmm0
+cmp $1, %r11
+je ld_xmm1
+cmp $2, %r11
+je ld_xmm2
+cmp $3, %r11
+je ld_xmm3
+cmp $4, %r11
+je ld_xmm4
+cmp $5, %r11
+je ld_xmm5
+cmp $6, %r11
+je ld_xmm6
+cmp $7, %r11
+je ld_xmm7
+mov %rax, 16(%rsp,%rbx,8)
+inc %rbx
 jmp ld_end
-ld_rdx:
-mov %rax, %rdx
-jmp ld_end
-ld_rcx:
-mov %rax, %rcx
-jmp ld_end
-ld_r8:
-mov %rax, %r8
-jmp ld_end
-ld_r9:
-mov %rax, %r9
-jmp ld_end
-jmp ld_stack   # >6 int arg goes to stack
 
 ld_xmm0:
 movq %rax, %xmm0
@@ -117,81 +165,29 @@ jmp ld_end
 ld_xmm7:
 movq %rax, %xmm7
 jmp ld_end
-jmp ld_stack   # >6 int arg goes to stack
-ld_stack:
-mov %rax, (%rsp,%r10,8)
-inc %r10
-jmp ld_end
-
-arg_loop_end:
-
-#shift r14 to the left
-mov %r12, %rax
-mov $63, %cl
-sub %cl, %al
-shl %cl, %r14
-
-#load args to registers
-xor %r13, %r13
-inc %r13
-
-mov %r15, %r10      #offset to put nonreg args onto stack
-
-ld_loop:
-cmp %r12, %r13
-jge arg_loop_end
-
-mov (%rsp,%r13,8), %rax
-
-shl $1, %r14
-jc ld_float
-
-ld_int:
-mov $7, %r11
-cmp %r13, %r11
-cmovle %r13, %r11
-dec %r11
-imul ld_rsi - ld_rdi, %r11
-//add ld_rdi, %r11
-
-//lea 0(%rip), %rax
-//add %rax, %r11
-
-mov (%rsp,%r13,8), %rax
-jmp *%r11
-
-ld_float:
-mov $9, %r11
-cmp %r13, %r11
-cmovle %r13, %r11
-dec %r11
-imul ld_xmm1 - ld_xmm0, %r11
-
-//add ld_xmm0, %r11
-
-mov (%rsp,%r13,8), %rax
-jmp *%r11
 
 ld_end:
-
-inc %r13
+inc %r10
+inc %r11
 jmp ld_loop
 ld_loop_end:
 
-pop %rax
+pop %rbx                   #lua_State * L
+pop %rax                   #function to call
+
 imul $8, %r15
 add %r15, %rsp             # adjust stack to stack0 so nonreg arguments are at proper position
 
 call_cfunc:
-call * %rax
-movq %xmm0, %r15
+call *(%rax)
+movq %xmm0, %r14
 
-mov %rbx, %rcx
-mov %rax, %rdx
+mov %rbx, %rdi
+mov %rax, %rsi
 call lua_pushinteger         #first return integer
 
-mov %rbx, %rcx
-movq %r15, %xmm1
+mov %rbx, %rdi
+movq %r14, %xmm0
 call lua_pushnumber          #then return floating point
 
 shr $1, %r12
