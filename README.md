@@ -1,5 +1,7 @@
 # uFFI
-Lua FFI for Win_x64 in less than 10 kBytes (UPX), https://habr.com/ru/articles/746658/
+FFI for Lua, https://habr.com/ru/articles/746658/
+#Build
+Corresponding build_ .bat/.sh files
 # Usage
 ```Lua
 local ffi = require "ffi"
