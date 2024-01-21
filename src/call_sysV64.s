@@ -3,11 +3,11 @@
 .section .text
 
 func__call_auto:
-pushq %rbx
-pushq %r12
-pushq %r13
-pushq %r14
-pushq %r15
+push %rbx
+push %r12
+push %r13
+push %r14
+push %r15
 
 mov %rdi, %rbx             #first argument lua_State * L passed in rdi, store in rbx
 
@@ -23,8 +23,8 @@ sub %rax, %rsp             #reserve stack ((n+1)/2)*16  [+1] - self
 mov %rbx, %rdi
 mov $1, %rsi
 call lua_touserdata
-pushq %rax                  #put C function on stack
-pushq %rbx                  #lua_state *L as well just to keep stack aligned
+push %rax                  #put C function on stack
+push %rbx                  #lua_state *L as well just to keep stack aligned
 
 #for (int i = 1; i < argc; i++) arg[i] = arg_to(L, i+1)
 mov $5, %r10               #argi
@@ -58,7 +58,7 @@ test $1, %r14
 jz store_int
 
 #movq %xmm0, (%rsp,%r13,8)     #store  ,r13 +1 (self), +8 -> +16bytes, stack: func, L, args...
-#tcc bug
+#tcc bug, probably fixed in a newer than 0.9.27 version
 
 movq %xmm0, %rax               #store  ,r13 +1 (self), +8 -> +16bytes, stack: func, L, args...
 movq %rax, (%rsp,%r13,8)       #store  ,r13 +1 (self), +8 -> +16bytes, stack: func, L, args...
@@ -124,6 +124,8 @@ cmp $4, %r10
 cmove %rax, %r8
 cmp $5, %r10
 cmove %rax, %r9
+cmp $6, %r10
+jl ld_end
 mov %rax, 16(%rsp,%rbx,8)
 inc %rbx
 jmp ld_end
@@ -180,8 +182,8 @@ inc %r11
 jmp ld_loop
 ld_loop_end:
 
-popq %rbx                   #lua_State * L
-popq %rax                   #function to call
+pop %rbx                   #lua_State * L
+pop %rax                   #function to call
 
 imul $8, %r15
 add %r15, %rsp             # adjust stack to stack0 so nonreg arguments are at proper position
@@ -204,11 +206,11 @@ sub %r15, %r12
 add %r12, %rsp                  #restore stack
 
 
-popq %r15
-popq %r14
-popq %r13
-popq %r12
-popq %rbx
+pop %r15
+pop %r14
+pop %r13
+pop %r12
+pop %rbx
 
 mov $2, %eax
 ret
