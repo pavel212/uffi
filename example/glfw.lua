@@ -3,11 +3,12 @@ local glfw = {}
 --for k,v in pairs(ffi("glfw3", "*")) do glfw[k:match("^glfw(.+)")] = v end
 
 setmetatable(glfw, {
-  __index = function(t, k) t[k] = ffi("glfw3", "glfw"..k) or getmetatable(t).__lib_error("glfw"..k); return t[k] end,
-  __lib_error = function(name) error("Unable to load '"..name.."' from glfw3.dll") end
+  __index = function(t, k) t[k] = ffi("glfw3", "glfw"..k) or ffi("libglfw.so", "glfw"..k) or getmetatable(t).__lib_error("glfw"..k); return t[k] end,
+  __lib_error = function(name) error("Unable to load '"..name.."' from glfw3 lib") end
 })
 
 local create_window = glfw.CreateWindow
+--local create_window = ffi("libglfw.so", "glfwCreateWindow", "piisii")
 function glfw.CreateWindow(...) return setmetatable({window = create_window(...)}, {__index = function(t,k) return function(self,...) return glfw[k](self.window,...) end end }) end
 
 --glfw.WindowShouldClose = ffi("glfw3", "glfwWindowShouldClose", "bp")        --specify boolean type, otherwire 0 == true in Lua

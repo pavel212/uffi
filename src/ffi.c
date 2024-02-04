@@ -188,6 +188,10 @@ static void pushfuncmetatable(lua_State * L, int(*__call)(lua_State*)){
   lua_setfield(L, -2, "__call");
 }
 
+int dbg__call_auto(lua_State * L){
+  return func__call_auto(L);
+}
+
 //generate code for library function call and push it as userdata on lua stack
 static void pushfunc(lua_State* L, void* lib, void* func, const char* argt) {
   if (argt) {
@@ -199,7 +203,8 @@ static void pushfunc(lua_State* L, void* lib, void* func, const char* argt) {
     int err = mprotect_exec(code, size);
   } else {
     uintptr_t* code = lua_newuserdatauv(L, sizeof(uintptr_t*), 1); //void* userdata to store func pointer, 1 uservalue to store lib pointer for FreeLibrary in __gc
-    pushfuncmetatable(L, func__call_auto);
+//    pushfuncmetatable(L, func__call_auto);
+    pushfuncmetatable(L, dbg__call_auto);
     lua_setmetatable(L, -2);
     *code = (uintptr_t)func;
   }
